@@ -1,0 +1,338 @@
+['Sheet1']
+{   1: 'Production BOM No.',
+    2: 'Description FG',
+    3: 'No.',
+    4: 'Description',
+    5: 'Unit of Measure Code',
+    6: 'Quantity',
+    7: 'Scrap %'}
+BOM list.xlsx's total row is 18658
+['Item List1']
+{   1: 'Item Category Code',
+    2: 'Process Line',
+    3: 'Product Compatability',
+    4: 'Allergens',
+    5: 'Color',
+    6: 'Inventory Class',
+    7: 'Inventory Category',
+    8: 'Process Line',
+    9: 'Customer Name',
+    10: 'No.',
+    11: 'Description',
+    12: 'Quantity on Hand',
+    13: 'SP Perry FL',
+    14: 'W1',
+    15: 'W2',
+    16: 'Duty Class',
+    17: 'Blocked',
+    18: 'Base Unit of Measure',
+    19: 'White Pallet',
+    20: 'Blue Pallet',
+    21: 'USA Pallet',
+    22: 'Heated Treated Pallet',
+    23: 'Last Date Modified',
+    24: 'Planner Code',
+    25: 'Product Group Code',
+    26: 'Default Qty',
+    27: 'Pack Qty',
+    28: 'Vendor Item No.',
+    29: 'Expiration Calculation',
+    30: 'Cost is Posted to G/L',
+    31: 'Production BOM No.',
+    32: 'Tax Group Code',
+    33: 'Sales (Qty.)',
+    34: 'Substitutes Exist',
+    35: 'Routing No.',
+    36: 'Cost is Adjusted',
+    37: 'Unit Cost',
+    38: 'Unit Price',
+    39: 'Global Dimension 1 Code',
+    40: 'Global Dimension 2 Code',
+    41: 'Vendor No.',
+    42: 'Search Description'}
+Item List.xlsx's total row is 2808
+['Sheet1']
+{   1: 'Document Type',
+    2: 'Document No.',
+    3: 'Sell-to Customer No.',
+    4: 'Type',
+    5: 'No.',
+    6: 'Description',
+    7: 'Location Code',
+    8: 'Quantity',
+    9: 'Unit of Measure Code',
+    10: 'Shipment Date',
+    11: 'Outstanding Quantity',
+    12: 'Reserve',
+    13: 'Reserved Qty. (Base)'}
+customer order list.xlsx's total row is 4165
+item_list err: no record for RF 049
+item_list err: no record for SUG 002
+item_list err: no record for RF 025
+item_list err: no record for PCF AN005
+item_list err: no record for PEC 020
+item_list err: no record for PEC 021
+item_list err: no record for PEC 022
+item_list err: no record for RC 076
+item_list err: no record for RF 049
+item_list err: no record for RF 025
+item_list err: no record for PCF AN001
+item_list err: no record for PCB 013
+item_list err: no record for RC 076
+item_list err: no record for RF 049
+item_list err: no record for RF 025
+item_list err: no record for PCF AN001
+item_list err: no record for PCB 013
+item_list err: no record for RC 076
+item_list err: no record for RF 049
+item_list err: no record for RF 025
+item_list err: no record for PCF AN001
+item_list err: no record for PCB 013
+item_list err: no record for RC 077
+item_list err: no record for RF 049
+item_list err: no record for SUG 002
+item_list err: no record for RF 025
+item_list err: no record for PCF AN003
+item_list err: no record for PCB 013
+item_list err: no record for RC 077
+item_list err: no record for RF 049
+item_list err: no record for SUG 002
+item_list err: no record for RF 025
+item_list err: no record for PCF AN003
+item_list err: no record for PCB 013
+item_list err: no record for RE 067
+item_list err: no record for RF 049
+item_list err: no record for RE 086
+item_list err: no record for PEF AN003
+item_list err: no record for PEC 017
+item_list err: no record for RC 076
+item_list err: no record for RF 049
+item_list err: no record for RF 025
+item_list err: no record for PCF AN002
+item_list err: no record for PCB 014
+item_list err: no record for RC 076
+item_list err: no record for RF 049
+item_list err: no record for RF 025
+item_list err: no record for PCF AN002
+item_list err: no record for PCB 014
+item_list err: no record for RC 076
+item_list err: no record for RF 049
+item_list err: no record for RF 025
+item_list err: no record for PCF AN002
+item_list err: no record for PCB 014
+item_list err: no record for RC 077
+item_list err: no record for RF 049
+item_list err: no record for SUG 002
+item_list err: no record for RF 025
+item_list err: no record for PCF AN004
+item_list err: no record for PCB 014
+item_list err: no record for RC 077
+item_list err: no record for RF 049
+item_list err: no record for SUG 002
+item_list err: no record for RF 025
+item_list err: no record for PCF AN004
+item_list err: no record for PCB 014
+item_list err: no record for RE 067
+item_list err: no record for RF 049
+item_list err: no record for RE 086
+item_list err: no record for PEF AN001A
+item_list err: no record for PEC 011
+item_list err: no record for RE 067
+item_list err: no record for RF 049
+item_list err: no record for RE 086
+item_list err: no record for PEF AN001A
+item_list err: no record for PEC 010
+item_list err: no record for RE 067
+item_list err: no record for RF 049
+item_list err: no record for RE 086
+item_list err: no record for PEF AN002A
+item_list err: no record for PEC 012
+item_list err: no record for RB 001
+item_list err: no record for RB 002
+item_list err: no record for RB 012
+item_list err: no record for RB 023
+item_list err: no record for RB 004
+item_list err: no record for RB 019
+item_list err: no record for RB 007
+item_list err: no record for RM FC267
+item_list err: no record for RF 011
+item_list err: no record for PB FC001
+item_list err: no record for PB FC002
+item_list err: no record for PB FC004
+item_list err: no record for PB FC005
+item_list err: no record for PB FC007
+item_list err: no record for PB FC010
+item_list err: no record for PB FC350
+item_list err: no record for PBC 031
+item_list err: no record for PT SHR019
+item_list err: no record for RB 001
+item_list err: no record for RB 002
+item_list err: no record for RB 012
+item_list err: no record for RB 023
+item_list err: no record for RB 004
+item_list err: no record for RB 019
+item_list err: no record for RB 007
+item_list err: no record for RM FC270
+item_list err: no record for RF 011
+item_list err: no record for PB FC001
+item_list err: no record for PB FC002
+item_list err: no record for PB FC004
+item_list err: no record for PB FC005
+item_list err: no record for PB FC007
+item_list err: no record for PB FC010
+item_list err: no record for PB FC354
+item_list err: no record for PBC 031
+item_list err: no record for PT SHR019
+item_list err: no record for RB 001
+item_list err: no record for RB 002
+item_list err: no record for RB 012
+item_list err: no record for RB 023
+item_list err: no record for RB 004
+item_list err: no record for RB 019
+item_list err: no record for RB 007
+item_list err: no record for RM FC268
+item_list err: no record for RF 011
+item_list err: no record for PB FC001
+item_list err: no record for PB FC002
+item_list err: no record for PB FC004
+item_list err: no record for PB FC005
+item_list err: no record for PB FC007
+customer order list err: 1258 no associate entry in BOM
+customer order list err: 1258 no associate entry in BOM
+customer order list err: 1258 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 7167 no associate entry in BOM
+customer order list err: 10155 no associate entry in BOM
+customer order list err: 10155 no associate entry in BOM
+customer order list err: 10155 no associate entry in BOM
+customer order list err: 20504 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 25800 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40000 no associate entry in BOM
+customer order list err: 40001 no associate entry in BOM
+customer order list err: 46501 no associate entry in BOM
+customer order list err: 46502 no associate entry in BOM
+customer order list err: 46502 no associate entry in BOM
+customer order list err: 46502 no associate entry in BOM
+customer order list err: 46503 no associate entry in BOM
+customer order list err: 88313 no associate entry in BOM
+customer order list err: 88314 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: 98961 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 11968 no associate entry in BOM
+customer order list err: AH 12111 no associate entry in BOM
+customer order list err: AH 12111 no associate entry in BOM
+customer order list err: AH 12111 no associate entry in BOM
+customer order list err: AH 12111 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56367 no associate entry in BOM
+customer order list err: AH 56368 no associate entry in BOM
+customer order list err: AH 56368 no associate entry in BOM
+customer order list err: AH 56368 no associate entry in BOM
+customer order list err: AH 56368 no associate entry in BOM
+customer order list err: AH 56368 no associate entry in BOM
+customer order list err: AH 56368 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56370 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: AH 56371 no associate entry in BOM
+customer order list err: BB 00551 no associate entry in BOM
+customer order list err: BB 00551 no associate entry in BOM
+customer order list err: BB 00551 no associate entry in BOM
+customer order list err: BB 00552 no associate entry in BOM
+customer order list err: BB 00552 no associate entry in BOM
+customer order list err: BB 00555 no associate entry in BOM
+customer order list err: BB 00555 no associate entry in BOM
+customer order list err: BB 00555 no associate entry in BOM
+customer order list err: BB 00556 no associate entry in BOM
+customer order list err: BB 00556 no associate entry in BOM
+customer order list err: BB 06602 no associate entry in BOM
+customer order list err: BB 06602 no associate entry in BOM
+customer order list err: BB 06602 no associate entry in BOM
+customer order list err: BB 06602 no associate entry in BOM
+customer order list err: BB 06602 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06603 no associate entry in BOM
+customer order list err: BB 06604 no associate entry in BOM
+customer order list err: BB 06604 no associate entry in BOM
+customer order list err: BB 06604 no associate entry in BOM
+customer order list err: BB 06604 no associate entry in BOM
+customer order list err: BB 06604 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06605 no associate entry in BOM
+customer order list err: BB 06606 no associate entry in BOM
+customer order list err: BB 06606 no associate entry in BOM
+customer order list err: BB 06606 no associate entry in BOM
+customer order list err: BB 06606 no associate entry in BOM
+There are 0 film items and 0 bag items in total
+Remove the duplicate item There are 0 film items and 0 bag items in total
