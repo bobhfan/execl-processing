@@ -14,6 +14,17 @@ FMT = '%Y-%m-%d'
 # date_time = datetime.now()
 
 # print("now is {}".format(date_time.strftime(FMT)))
+
+WEEK_DAY = {
+    0 : 'Mon',
+    1 : "Tue",
+    2 : "Wen",
+    3 : "Thu",
+    4 : "Fri",
+    5 : "Sat",
+    6 : "Sun",
+}
+
 file_dict = {
                 'BOM list.xlsx' : 1,
                 'Item List.xlsx' : 1,
@@ -27,11 +38,14 @@ Item_List_Interest_Field_List = ['Duty Class',
                                 'W2',
                                 'Base Unit of Measure' ,
                                 'Vendor No.',
+                                'Item Category Code',
+                                'Quantity on Hand',
                                 ]
 
 Interest_Duty_List = ["FILM", "BAG",  "SEASONING"]
 
 Valid_Purchase_Period = timedelta(days=365)
+Current_day = datetime.today() - timedelta(days=1)
 
 Purchase_Lines_Interest_Dict = {
         'Promised Receipt Date':'Promised Receipt Date',
@@ -80,11 +94,17 @@ def read_data_from_files(file_dict):
                 if 'Item List.xlsx' in file_name :
                     if 'No.' in field_name_dict[colum_n] \
                         and ' ' not in field_name_dict[colum_n]:
-                        
-                        item_no = sheet.cell(row=line, column=colum_n).value
+
+                        if isinstance(sheet.cell(row=line, column=colum_n).value, float):
+                            item_no = str(int(sheet.cell(row=line, column=colum_n).value))
+                        else:
+                            item_no = sheet.cell(row=line, column=colum_n).value
 
                     elif field_name_dict[colum_n] in Item_List_Interest_Field_List:
                         tmp_dict.update({field_name_dict[colum_n] : sheet.cell(row=line, column=colum_n).value}) 
+                    
+                    elif 'Description' in field_name_dict[colum_n] and ' ' not in field_name_dict[colum_n]:
+                        tmp_dict.update({field_name_dict[colum_n] : sheet.cell(row=line, column=colum_n).value})                    
 
                     elif 'Blocked' in field_name_dict[colum_n]:
                         item_block = sheet.cell(row=line, column=colum_n).value
@@ -119,15 +139,16 @@ def read_data_from_files(file_dict):
                         material_dict_key = sheet.cell(row=line, column=colum_n).value 
 
                     else:
-                        if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
-                            tmp_dict.update(
-                                {field_name_dict[colum_n] : 
-                                sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
-                        else:
+                        if "Description" not in field_name_dict[colum_n]:
+                            if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
+                                tmp_dict.update(
+                                    {field_name_dict[colum_n] : 
+                                    sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
+                            else:
 
-                            tmp_dict.update({
-                                field_name_dict[colum_n] : 
-                                sheet.cell(row=line, column=colum_n).value})     
+                                tmp_dict.update({
+                                    field_name_dict[colum_n] : 
+                                    sheet.cell(row=line, column=colum_n).value})     
                 
                 # This is for generate the dict which key is the value of 'No.' and the dict is
                 # other fields
@@ -139,27 +160,28 @@ def read_data_from_files(file_dict):
                     elif 'Document No.' in field_name_dict[colum_n]:
                         customer_document_no = sheet.cell(row=line, column=colum_n).value  
 
-                    elif 'Quantity' in field_name_dict[colum_n] and not ' ' in field_name_dict[colum_n]:
+                    elif 'Outstanding Quantity' in field_name_dict[colum_n] and not ' ' in field_name_dict[colum_n]:
                         tmp_dict.update({
-                                'Customer order Quantity' : 
+                                'Outstanding Quantity' : 
                                 sheet.cell(row=line, column=colum_n).value})      
 
                     else:
-                        if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
-                            tmp_dict.update(
-                                {field_name_dict[colum_n] : 
-                                sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
-                        else:
+                        if "Description" not in field_name_dict[colum_n]:
+                            if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
+                                tmp_dict.update(
+                                    {field_name_dict[colum_n] : 
+                                    sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
+                            else:
 
-                            tmp_dict.update({
-                                field_name_dict[colum_n] : 
-                                sheet.cell(row=line, column=colum_n).value})   
+                                tmp_dict.update({
+                                    field_name_dict[colum_n] : 
+                                    sheet.cell(row=line, column=colum_n).value})   
 
             
             # when the processing end for one row should update the "No.->":Duty Class into the dict
             if 'Item List.xlsx' in file_name :
-                if 'No' in item_block:
-                    data_dict.update({item_no : tmp_dict})
+                # if not item_block or 'No' in item_block :
+                data_dict.update({item_no : tmp_dict})
 
             elif 'customer order list.xlsx' in file_name:
                 real_key = customer_document_no + '---' + str(dict_key)
@@ -341,6 +363,12 @@ def step_2_processsing():
     for key, value in Dict_step_2['customer order list_step_1.json'].items():
         customer_document_no, bom_no = key.split('---')
         customer_dict = value
+        # search the bom_no in the item list to determine if there is some storage for this to compensate the quantity
+        if bom_no in Dict_step_2['Item List_step_1.json']:
+            if 'FG' in Dict_step_2['Item List_step_1.json'][bom_no].get("Item Category Code", 'unknown'):
+                on_hand_quantity = Dict_step_2['Item List_step_1.json'][bom_no].get("Quantity on Hand", 0.0)
+                Dict_step_2['customer order list_step_1.json'][key].update({"Quantity on Hand from Item" : on_hand_quantity})                
+
         if bom_no in bom_dict:
             # print("there is associatekey in BOM for {}".format(value['Document No.']))
             bom_items_dict = bom_dict.get(bom_no, 'not found')
@@ -397,6 +425,8 @@ def step_3_processing():
     with open('Item List_step_1.json') as json_file:
         item_dict = json.load(json_file)
 
+    # append item info at top_dict for each item_no
+    # find all items not showingup in BOM list but exist in the item list
     bom_item_list = []
     for bom_no, top_dict in final_dict.items():
         if bom_no in item_dict:
@@ -425,12 +455,15 @@ def write_to_xls_file():
     sheet = book.active
 
 
-    current_day = datetime.today() - timedelta(days=3)
+
 
 
     row_1_list = [  "Vendor",
                     'Production Code',
                     "Duty Class",
+                    'Description',
+                    "Base Unit of Measure",
+                    "Total Demand",
                     "Key Description",
                     "Past Due",
                 ]
@@ -448,22 +481,23 @@ def write_to_xls_file():
 
     future_4_weeks_day_list = []
 
-    header_font = Font(color="FF0000")
+    header_font = Font(color="000000")
     sub_row_font = [
-                        Font(color="eeaabb"),
-                        Font(color="bb7766"),
-                        Font(color="dd9988"),
-                        Font(color="cc8877"),
-                        Font(color="bb7766"),
-                        Font(color="eeaabb"),
-                        Font(color="bb7766"),
-                        Font(color="eeaabb"),
+                        Font(color="000000"),
+                        Font(color="000000"),
+                        Font(color="000000"),
+                        Font(color="000000"),
+                        Font(color="000000"),
+                        Font(color="000000"),
+                        Font(color="000000"),
+                        Font(color="000000"),
                     ]
 
 
     for offset in range(14):
-        next_day = current_day + timedelta(days=offset+1)
-        row_1_list.append(next_day.strftime(FMT))
+        next_day = Current_day + timedelta(days=offset+1)
+       
+        row_1_list.append(WEEK_DAY[next_day.weekday()] + '\n' + next_day.strftime(FMT))
 
     for offset_days in range(1, 29):
         if (offset_days % 7) == 0:
@@ -489,7 +523,7 @@ def write_to_xls_file():
     column_cnt = 1
 
     for bom_key, top_dict in final_order_dict.items():
-
+        ttt_dict = {}
         if top_dict.get("Duty Class", "unknown") in Interest_Duty_List:
 
             demand_dict = defaultdict(lambda: float(0))
@@ -498,16 +532,28 @@ def write_to_xls_file():
                 if isinstance(middle_dict, dict):
                     per_unit_production_quantity = float(middle_dict["Production Quantity"])
                     scrap = float(middle_dict["Scrap %"])
-                    order_quantity = float(middle_dict["Customer order Quantity"])
+                    order_quantity = float(middle_dict["Outstanding Quantity"])
                     demand_quantity = order_quantity * per_unit_production_quantity * (1.0 + scrap * 0.01)
 
+                    # print("demand for bom:{} on order {} '{}'   is   {:.3f}        = {}    *   {}*    (1.0 + {} * 0.01)".format(bom_key, middle_key, middle_dict["Shipment Date"], demand_quantity, 
+                    #                         order_quantity, 
+                    #                         per_unit_production_quantity, 
+                    #                         scrap))
+
+                    # ttt_dict[middle_dict["Shipment Date"] + '-' +  middle_key] = "{:.3f}  = {} * {} * (1.0 + {} * 0.01)".format(demand_quantity, order_quantity, per_unit_production_quantity,  scrap)
+                    
                     # till now only occur once
-                    if middle_dict["Shipment Date"] not in demand_dict:
+                    if middle_dict["Shipment Date"] not in demand_dict_tmp:
                         demand_dict_tmp.update({middle_dict["Shipment Date"]: demand_quantity})
                     # already have one, accumulate the demand on it
                     else:
-                        demand_sum = demand_dict[middle_dict["Shipment Date"]] + demand_quantity
+                        demand_sum = demand_dict_tmp[middle_dict["Shipment Date"]] + demand_quantity
                         demand_dict_tmp.update({middle_dict["Shipment Date"]: demand_sum})
+
+            # print("after analyze same date for shipment this is the result ")
+            # pprint.pprint(dict(demand_dict_tmp))
+            # pprint.pprint(dict(sorted(ttt_dict.items())))
+
 
             # print('tmp_dict is {}'.format(demand_dict_tmp))
 
@@ -539,22 +585,33 @@ def write_to_xls_file():
                 sheet.cell(row=row_cnt, column=1).value = top_dict.get("Vendor No.", "unknown")
                 sheet.cell(row=row_cnt, column=2).value = bom_key
                 sheet.cell(row=row_cnt, column=3).value = top_dict.get("Duty Class", "uknown")
+                sheet.cell(row=row_cnt, column=4).value = top_dict.get('Description', "uknown")
+                sheet.cell(row=row_cnt, column=5).value = top_dict.get("Base Unit of Measure", "uknown")
 
-                sheet.cell(row=row_cnt, column=4).value = specific_column_list[sub_row]
-                sheet.cell(row=row_cnt, column=4).font = sub_row_font[sub_row]
+                sheet.cell(row=row_cnt, column=7).value = specific_column_list[sub_row]
+                sheet.cell(row=row_cnt, column=7).font = sub_row_font[sub_row]
+
+                total_demand = 0
 
                 # add demand number into the excel
                 if 'Demand' in specific_column_list[sub_row]:
                     # put demand value for each following 14 days
-                    for column_no in range(4, len(row_1_list)):
-                        if row_1_list[column_no] in demand_dict:
-                            sheet.cell(row=row_cnt, column=column_no + 1).value = demand_dict[row_1_list[column_no]]
+                    for column_no in range(7, len(row_1_list)):
+                        if row_1_list[column_no].splitlines()[-1] in demand_dict:
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(demand_dict[row_1_list[column_no].splitlines()[-1]]))
+                            if 'Sat' in row_1_list[column_no] or 'Sun' in row_1_list[column_no]:
+                                sheet.cell(row=row_cnt, column=column_no + 1).fill = PatternFill(start_color="B3F2FF", end_color="B3F2FF", fill_type = "solid")
+
+
+                            total_demand += sheet.cell(row=row_cnt, column=column_no + 1).value
 
                 elif 'On Hand (W1)' in specific_column_list[sub_row]:
-                    sheet.cell(row=row_cnt, column=5).value = int(top_dict.get("W1", 0))
+                    sheet.cell(row=row_cnt, column=8).value = int(top_dict.get("W1", 0))
 
                 elif 'On Hand (W2)' in specific_column_list[sub_row]:
-                    sheet.cell(row=row_cnt, column=5).value = int(top_dict.get("W2", 0))
+                    sheet.cell(row=row_cnt, column=8).value = int(top_dict.get("W2", 0))
+
+                sheet.cell(row=row_cnt, column=6).value = int(round(total_demand))
 
                 row_cnt += 1
                 column_cnt = 1
