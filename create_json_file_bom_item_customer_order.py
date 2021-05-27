@@ -4,9 +4,11 @@ from openpyxl.styles import PatternFill
 from datetime import datetime, timedelta
 from datetime import date as date_op
 import pprint
+import argparse
 import json
 from collections import OrderedDict, defaultdict
 import holidays
+import sys
 
 FMT = '%Y-%m-%d'
 YEAR_FMT = '%Y'
@@ -30,11 +32,13 @@ WEEK_DAY = {
     6 : "Sun",
 }
 
+WORKING_DIR = ''
+
 file_dict = {
-                'BOM list.xlsx' : 1,
-                'Item List.xlsx' : 1,
-                'customer order list.xlsx': 1,
-                'Purchase Lines.xlsx':1,
+                WORKING_DIR + 'BOM list.xlsx' : 1,
+                WORKING_DIR + 'Item List.xlsx' : 1,
+                WORKING_DIR + 'customer order list.xlsx': 1,
+                WORKING_DIR + 'Purchase Lines.xlsx':1,
             }
 
 
@@ -60,10 +64,10 @@ Purchase_Lines_Interest_Dict = {
     }
 
 Dict_step_2 = {
-                'BOM list_step_1.json' : {},
-                'Item List_step_1.json' : {},
-                'customer order list_step_1.json': {},
-                'Purchase Lines_step_1.json' : {},
+                WORKING_DIR + 'BOM list_step_1.json' : {},
+                WORKING_DIR + 'Item List_step_1.json' : {},
+                WORKING_DIR + 'customer order list_step_1.json': {},
+                WORKING_DIR + 'Purchase Lines_step_1.json' : {},
                 }
 
 def read_data_from_files(file_dict):
@@ -242,7 +246,7 @@ def step_2_processsing():
 
     purchase_dict = {}
 
-    for item_no, top_dict in Dict_step_2['Purchase Lines_step_1.json'].items():
+    for item_no, top_dict in Dict_step_2[WORKING_DIR + 'Purchase Lines_step_1.json'].items():
         tmp_dict = OrderedDict(sorted(top_dict['promise'].items()))
         purchase_dict[item_no] = {}
         purchase_dict[item_no]['promise'] = tmp_dict
@@ -250,7 +254,7 @@ def step_2_processsing():
         purchase_dict[item_no]['request'] = tmp_dict
 
        
-    with open('Purchase Lines_step_2.json', "w") as json_file:
+    with open(WORKING_DIR + 'Purchase Lines_step_2.json', "w") as json_file:
         json.dump(purchase_dict, json_file, indent = 4) 
 
     
@@ -286,17 +290,17 @@ def step_2_processsing():
     # with open('BOM list_step_2.json', "w") as json_file:
     #     json.dump(bom_dict, json_file, indent = 4)    
 
-    bom_dict = Dict_step_2['BOM list_step_1.json']
+    bom_dict = Dict_step_2[WORKING_DIR + 'BOM list_step_1.json']
     filtered_dict = {}
 
-    for key, value in Dict_step_2['customer order list_step_1.json'].items():
+    for key, value in Dict_step_2[WORKING_DIR + 'customer order list_step_1.json'].items():
         customer_document_no, bom_no = key.split('---')
         customer_dict = value
         # search the bom_no in the item list to determine if there is some storage for this to compensate the quantity
-        if bom_no in Dict_step_2['Item List_step_1.json']:
-            if 'FG' in Dict_step_2['Item List_step_1.json'][bom_no].get("Item Category Code", 'unknown'):
-                on_hand_quantity = Dict_step_2['Item List_step_1.json'][bom_no].get("Quantity on Hand", 0.0)
-                Dict_step_2['customer order list_step_1.json'][key].update({"Quantity on Hand from Item" : on_hand_quantity})                
+        if bom_no in Dict_step_2[WORKING_DIR + 'Item List_step_1.json']:
+            if 'FG' in Dict_step_2[WORKING_DIR + 'Item List_step_1.json'][bom_no].get("Item Category Code", 'unknown'):
+                on_hand_quantity = Dict_step_2[WORKING_DIR + 'Item List_step_1.json'][bom_no].get("Quantity on Hand", 0.0)
+                Dict_step_2[WORKING_DIR + 'customer order list_step_1.json'][key].update({"Quantity on Hand from Item" : on_hand_quantity})                
 
         if bom_no in bom_dict:
             # print("there is associatekey in BOM for {}".format(value['Document No.']))
@@ -310,7 +314,7 @@ def step_2_processsing():
         else:
             print("customer order list err: {} no associate entry in BOM".format(bom_no))
 
-    with open('customer order list_step_2.json', "w") as json_file:
+    with open(WORKING_DIR + 'customer order list_step_2.json', "w") as json_file:
         json.dump(filtered_dict, json_file, indent = 4) 
 
 # def step_2_1_processing():
@@ -318,67 +322,84 @@ def step_2_processsing():
 #         custom_dict = json.load(json_file)
 
 #     tmp_dict = {}
+#     seq_no = 1
 #     for combined_key, top_dict in custom_dict.items():
 #         _, bom_no = combined_key.split('---')
-#         ship_date = top_dict["Shipment Date"]
+#         new_combined_key = bom_no + '---' + top_dict["Shipment Date"] + '---' + str(seq_no)
 
-#         tmp_dict[bom_no + '---' + ship_date] = top_dict
+#         tmp_dict[new_combined_key] = top_dict
+#         seq_no += 1
 
-#     dict_1 = OrderedDict(sorted(tmp_dict.items()))
-#     bom_no_date_list = dict_1.keys()
-
-#     for index in range(len(bom_no_date_list)):
-
-#         current_dict_key = bom_no_date_list[index]
-
-#         if float(dict_1[current_dict_key]["Quantity on Hand from Item"]) == 0.0 or 
-
-#         modified_record_list = []
-
-#         current_on_hand_quantity = float(dict_1[current_dict_key]["Quantity on Hand from Item"])
-#         # on hand quantity is not enough to cover the first customer order
-#         if current_on_hand_quantity <= float(dict_1[current_dict_key]["Quantity"]):
-#             dict_1[current_dict_key]["Quantity"] -= dict_1[current_dict_key]["Quantity on Hand from Item"]
-#             dict_1[current_dict_key]["Quantity on Hand from Item"] = 0
-
-#             # find all record with same bom_no with different date, and modify their on hand value to zero to indicate all 
-#             # on hand have been used by current order`
-#             bom_no, _ = current_dict_key.split('---')
-#             for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
-#                 next_record_dict_key = bom_no_date_list[index + offset]
-#                 # same bom_no with variuos date
-#                 if bom_no in next_record_dict_key:
-#                     dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
-#                 # end of iteration, because no more bom_no found
-#                 else:
-#                     break
-#         # on hand quantity could cover the first customer order, make the quantity of current quantity to zero to indicate no demand
-#         # at all, but need cotinue this process to modify next customer order
-#         else:
-            
-#             modified_record_list.append(index)
-#             dict_1[current_dict_key]["Quantity on Hand from Item"] -= dict_1[current_dict_key]["Quantity"] 
-#             dict_1[current_dict_key]["Quantity"] = 0
-
-#             bom_no, _ = current_dict_key.split('---')
-#             for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
-#                 next_record_dict_key = bom_no_date_list[index + offset]
-#                 # same bom_no with variuos date
-#                 if bom_no in next_record_dict_key:
-#                     dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
-#                 # end of iteration, because no more bom_no found
-#                 else:
-#                     break
+#     combined_key_list = sorted(tmp_dict.keys())
+#     bom_no_only_list = []
+#     tmp_2_dict = {}
+    
+#     for combined_key in combined_key_list:
+#         bom_no, _, _ = combined_key.split('---')
+#         bom_no_only_list.append(bom_no)
+    
+#     bom_no_only_2_list = list(set(bom_no_only_list))
 
 
 #     with open('customer order list_step_2_1.json', "w") as json_file:
-#         json.dump(dict_1, json_file, indent = 4) 
+#         json.dump(tmp_dict, json_file, indent = 4) 
+
+
+    # dict_1 = OrderedDict(sorted(tmp_dict.items()))
+    # bom_no_date_list = dict_1.keys()
+
+    # for index in range(len(bom_no_date_list)):
+
+    #     current_dict_key = bom_no_date_list[index]
+
+    #     if float(dict_1[current_dict_key]["Quantity on Hand from Item"]) == 0.0 or 
+
+    #     modified_record_list = []
+
+    #     current_on_hand_quantity = float(dict_1[current_dict_key]["Quantity on Hand from Item"])
+    #     # on hand quantity is not enough to cover the first customer order
+    #     if current_on_hand_quantity <= float(dict_1[current_dict_key]["Quantity"]):
+    #         dict_1[current_dict_key]["Quantity"] -= dict_1[current_dict_key]["Quantity on Hand from Item"]
+    #         dict_1[current_dict_key]["Quantity on Hand from Item"] = 0
+
+    #         # find all record with same bom_no with different date, and modify their on hand value to zero to indicate all 
+    #         # on hand have been used by current order`
+    #         bom_no, _ = current_dict_key.split('---')
+    #         for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
+    #             next_record_dict_key = bom_no_date_list[index + offset]
+    #             # same bom_no with variuos date
+    #             if bom_no in next_record_dict_key:
+    #                 dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
+    #             # end of iteration, because no more bom_no found
+    #             else:
+    #                 break
+    #     # on hand quantity could cover the first customer order, make the quantity of current quantity to zero to indicate no demand
+    #     # at all, but need cotinue this process to modify next customer order
+    #     else:
+            
+    #         modified_record_list.append(index)
+    #         dict_1[current_dict_key]["Quantity on Hand from Item"] -= dict_1[current_dict_key]["Quantity"] 
+    #         dict_1[current_dict_key]["Quantity"] = 0
+
+    #         bom_no, _ = current_dict_key.split('---')
+    #         for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
+    #             next_record_dict_key = bom_no_date_list[index + offset]
+    #             # same bom_no with variuos date
+    #             if bom_no in next_record_dict_key:
+    #                 dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
+    #             # end of iteration, because no more bom_no found
+    #             else:
+    #                 break
+
+
+    # with open('customer order list_step_2_1.json', "w") as json_file:
+    #     json.dump(dict_1, json_file, indent = 4) 
 
 # use bom_no_id in the BOM List as the key to reorganize the customer order list to gather all customer order which belong to
 # one bom item
 def step_3_processing():
 
-    with open('customer order list_step_2.json') as json_file:
+    with open(WORKING_DIR + 'customer order list_step_2.json') as json_file:
         custom_dict = json.load(json_file)
 
     final_dict = {}
@@ -411,7 +432,7 @@ def step_3_processing():
                         final_dict[real_key][custom_no].update({key:value})                
 
 
-    with open('Item List_step_1.json') as json_file:
+    with open(WORKING_DIR + 'Item List_step_1.json') as json_file:
         item_dict = json.load(json_file)
 
     # append item info at top_dict for each item_no
@@ -430,7 +451,7 @@ def step_3_processing():
    
         # print("{} of duty '{}' showd up in {} customer orders".format(bom_key, top_dict['Duty Class'], order_cnt))
     
-    with open('customer order list_step_3.json', "w") as json_file:
+    with open(WORKING_DIR + 'customer order list_step_3.json', "w") as json_file:
         json.dump(final_dict, json_file, indent = 4)     
 
 # print("now is {}".format(date_time.strftime(FMT)))
@@ -439,7 +460,7 @@ def step_3_processing():
 
 def write_to_xls_file():
     final_order_dict = OrderedDict()
-    with open('customer order list_step_3.json') as json_file:
+    with open(WORKING_DIR + 'customer order list_step_3.json') as json_file:
         final_order_dict = json.load(json_file) 
 
     book = openpyxl.Workbook()
@@ -451,6 +472,7 @@ def write_to_xls_file():
                     'Description',
                     "Base Unit of Measure",
                     "Total Demand",
+                    # "Total on Hand",       
                     "Key Description",
                     "Past Due",
                 ]
@@ -515,7 +537,7 @@ def write_to_xls_file():
     row_cnt += 1
     column_cnt = 1
 
-    with open('Purchase Lines_step_2.json') as json_file:
+    with open(WORKING_DIR + 'Purchase Lines_step_2.json') as json_file:
         purchase_dict = json.load(json_file)
 
     for bom_key, top_dict in final_order_dict.items():
@@ -674,13 +696,13 @@ def write_to_xls_file():
                     # put demand value for each following 14 days
                     for column_no in range(7, len(row_1_list)):
                         if row_1_list[column_no] in open_po_dict:
-                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(open_po_dict[row_1_list[column_no]]))
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(purchase_receipt_dict[row_1_list[column_no]]))
 
                 elif 'Purchases Receipts'in specific_column_list[sub_row]:
                     # put demand value for each following 14 days
                     for column_no in range(7, len(row_1_list)):
                         if row_1_list[column_no] in purchase_receipt_dict:
-                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(purchase_receipt_dict[row_1_list[column_no]]))
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(open_po_dict[row_1_list[column_no]]))
 
                 
                 elif 'On Hand (W1)' in specific_column_list[sub_row]:
@@ -699,12 +721,63 @@ def write_to_xls_file():
     print("write {} row".format(row_cnt))
 
                 
-    book.save("output_{}.xlsx".format(datetime.now().strftime(FMT)))
+    book.save(WORKING_DIR + "output_{}.xlsx".format(datetime.now().strftime(FMT)))
 
 
-read_data_from_files(file_dict)
-step_2_processsing()
-# step_2_1_processing()
-step_3_processing()
-write_to_xls_file()
+# # read_data_from_files(file_dict)
+# step_2_processsing()
+# # step_2_1_processing()
+# step_3_processing()
+# write_to_xls_file()
 
+def build_parser():
+    '''
+    Build command line options.
+    '''
+    parser = argparse.ArgumentParser(
+        description='Procesing the xls files')
+
+    # Positional Arguments
+    parser.add_argument("-d", "--dst_dir",
+                        type=str,
+                        help='destination direcoty')
+
+    parser.add_argument("-r", "--running_steps",
+                        type=str,
+                        help='all steps or skip first reading which consume most of time <all|skip>')
+
+    return parser
+
+def main():
+    '''
+    Args:
+        argv[1](str) :  destination directory
+        argv[2](str) :  step all or exclude step_1 of reading inital execl file
+
+    Returns:
+    '''
+    
+
+    # Load argparse and parse arguments.
+    cmd_parser = build_parser()
+    args = cmd_parser.parse_args(sys.argv[1:])
+
+
+    #Commnd from Zabbix server to query the RPD stats
+    WORKING_DIR = args.dst_dir
+
+    if 'skip' in args.running_steps:
+    # read_data_from_files(file_dict)
+        step_2_processsing()
+        # step_2_1_processing()
+        step_3_processing()
+        write_to_xls_file()
+    elif 'all' in args.running_steps:
+        read_data_from_files(file_dict)
+        step_2_processsing()
+        # step_2_1_processing()
+        step_3_processing()
+        write_to_xls_file()
+
+if __name__ == '__main__':
+    main()
