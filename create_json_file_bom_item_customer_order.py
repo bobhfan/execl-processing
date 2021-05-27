@@ -2,12 +2,17 @@ import openpyxl
 from openpyxl.styles import Font
 from openpyxl.styles import PatternFill
 from datetime import datetime, timedelta
+from datetime import date as date_op
 import pprint
 import json
 from collections import OrderedDict, defaultdict
+import holidays
 
 FMT = '%Y-%m-%d'
+YEAR_FMT = '%Y'
+  
 
+MAXIMUM_DUPLICATE_ORDER = 100
 
 # time = datetime.strptime("2021-02-13 00:00:00", FMT)
 
@@ -45,7 +50,7 @@ Item_List_Interest_Field_List = ['Duty Class',
 Interest_Duty_List = ["FILM", "BAG",  "SEASONING"]
 
 Valid_Purchase_Period = timedelta(days=365)
-Current_day = datetime.today() - timedelta(days=1)
+Current_day = datetime.today() + timedelta(days=-1)
 
 Purchase_Lines_Interest_Dict = {
         'Promised Receipt Date':'Promised Receipt Date',
@@ -70,27 +75,30 @@ def read_data_from_files(file_dict):
         sheet = wb.active
 
         data_dict = {}
+
+        # key -> column_no
+        # value ->header description
         field_name_dict = {}
 
         for x in range (start_row,start_row + 1):
 
             for y in range(1,sheet.max_column + 1):
                 field_name_dict.update({y:sheet.cell(row=x,column=y).value})
-            # data_dict.update({'row_1':field_name_dict})
+        
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(field_name_dict)
 
-
-        # # iterate through excel and display data
         print("{}'s total row is {}".format(file_name, sheet.max_row))
 
+        # iterate through excel
+        seq_no = 1
         for line in range(start_row + 1, sheet.max_row+1):
         # for line in range(3, 155):
             tmp_dict = {}
             for colum_n in range(1, sheet.max_column+1):
-                # This is for generate the dict which key is the value of 'No.' and value is the  
-                # value of "Duty Class" to help spped up the lookup of the material covered by BOM list
-
+                
+                # This is for extract item list info to create the dict for the first step
+                # {item_no : { interesting_field : value}}
                 if 'Item List.xlsx' in file_name :
                     if 'No.' in field_name_dict[colum_n] \
                         and ' ' not in field_name_dict[colum_n]:
@@ -109,6 +117,8 @@ def read_data_from_files(file_dict):
                     elif 'Blocked' in field_name_dict[colum_n]:
                         item_block = sheet.cell(row=line, column=colum_n).value
 
+                # This is for extract purchase line info to create the dict for the first step
+                # {item_no : {po_no : { Interest_description : value }}}
                 if 'Purchase Lines.xlsx' in file_name :
                     if 'No.' in field_name_dict[colum_n] and ' ' not in field_name_dict[colum_n] :
                         item_no = sheet.cell(row=line, column=colum_n).value
@@ -116,19 +126,20 @@ def read_data_from_files(file_dict):
                     elif 'Document No.' in field_name_dict[colum_n] :
                         document_no = sheet.cell(row=line, column=colum_n).value
 
-                    elif field_name_dict[colum_n] in Purchase_Lines_Interest_Dict.keys():
-                        if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
-                            tmp_dict.update(
-                                {field_name_dict[colum_n] : 
-                                sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
-                        else:
-                            tmp_dict.update({Purchase_Lines_Interest_Dict[field_name_dict[colum_n]] : sheet.cell(row=line, column=colum_n).value}) 
+                    elif "Promised Receipt Date" in field_name_dict[colum_n] :
+                        if sheet.cell(row=line, column=colum_n).value:
+                            promise_date = sheet.cell(row=line, column=colum_n).value.strftime(FMT)
+                    
+                    elif "Outstanding Quantity" in field_name_dict[colum_n] :
+                        quantity = sheet.cell(row=line, column=colum_n).value
 
+                    elif "Requested Receipt Date" in field_name_dict[colum_n] :
+                        if sheet.cell(row=line, column=colum_n).value and isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
+                            request_date = sheet.cell(row=line, column=colum_n).value.strftime(FMT)
 
-                # This is for generate the dict which key is the value of 'Production BOM No.' and the dict is
-                # other field
+                # {bom_no : {item_no : { production_variable : value}}}
+                # To have a specific production done may need multiple items involved in the production
                 elif 'BOM list.xlsx' in file_name :
-
                     
                     if 'Production BOM No.' in field_name_dict[colum_n]:
                         dict_key = sheet.cell(row=line, column=colum_n).value 
@@ -150,8 +161,8 @@ def read_data_from_files(file_dict):
                                     field_name_dict[colum_n] : 
                                     sheet.cell(row=line, column=colum_n).value})     
                 
-                # This is for generate the dict which key is the value of 'No.' and the dict is
-                # other fields
+                # each customer order associated with a specific bom_no
+                # {customer_order+bom_no : {customer_order_field : value}}
                 elif 'customer order list.xlsx' in file_name :
                     if 'No.' in field_name_dict[colum_n] \
                         and ' ' not in field_name_dict[colum_n]:
@@ -200,13 +211,19 @@ def read_data_from_files(file_dict):
 
             elif 'Purchase Lines.xlsx' in file_name:
                 if item_no not in data_dict:
-                    data_dict.update({item_no:{}})
-                
-                data_dict[item_no].update({
-                    document_no : 
-                    tmp_dict})
+                    data_dict[item_no] = {}
+                    data_dict[item_no]['promise'] = {}
+                    data_dict[item_no]['request'] = {}
+
+                if 'promise_date' in locals():
+                    data_dict[item_no]['promise'][promise_date + '---' + str(seq_no)] = quantity
+                elif 'request_date' in locals():
+                    data_dict[item_no]['request'][request_date + '---' + str(seq_no)] = quantity
+
+                seq_no += 1
 
 
+ 
         # pp.pprint(custom_order_list_dict)
         with open(file_name.replace('.xlsx', '_step_1.json'), "w") as json_file:
             json.dump(data_dict, json_file, indent = 4)
@@ -226,101 +243,13 @@ def step_2_processsing():
     purchase_dict = {}
 
     for item_no, top_dict in Dict_step_2['Purchase Lines_step_1.json'].items():
-        tmp_promise_dict = {}
-        tmp_expect_dict = {}
-        tmp_quantiry_dict = {}
-        tmp_dict = {}
-        for po_no, second_dict in top_dict.items():
-            for key, value in second_dict.items():
-                if "Promised" in key:
-                    if not value:
-                        value = '1976-01-01'
-                    tmp_promise_dict.update({po_no + key : value})
-                elif "Expected" in key:
-                    if not value:
-                        value = '1976-01-01'
-                    tmp_expect_dict.update({po_no + key : value})
-                else:
-                    tmp_quantiry_dict.update({po_no + key : value})
-        marklist=sorted((value, key) for (key,value) in tmp_promise_dict.items()
-            if datetime.now() - datetime.strptime(value, FMT) < Valid_Purchase_Period)
-        sortdict=dict([(k,v) for v,k in marklist])
-        purchase_dict.update({item_no:{}})
-        purchase_dict[item_no]['promise'] = sortdict
+        tmp_dict = OrderedDict(sorted(top_dict['promise'].items()))
+        purchase_dict[item_no] = {}
+        purchase_dict[item_no]['promise'] = tmp_dict
+        tmp_dict = OrderedDict(sorted(top_dict['request'].items()))
+        purchase_dict[item_no]['request'] = tmp_dict
 
-
-        marklist=sorted((value, key) for (key,value) in tmp_expect_dict.items()
-            if datetime.now() - datetime.strptime(value, FMT) < Valid_Purchase_Period)
-        sortdict=dict([(k,v) for v,k in marklist])
-        purchase_dict[item_no]['expect'] = sortdict
-
-        purchase_dict[item_no]['quantity'] = tmp_quantiry_dict
-        
-    with open('Purchase Lines_step_22.json', "w") as json_file:
-        json.dump(purchase_dict, json_file, indent = 4) 
-        
-        po_no_list = []
-        po_promise_date_list =[]
-        po_expect_date_list = []
-
-        for po_no, second_dict in top_dict.items():
-            po_no_list.append(po_no)
-            if not second_dict.get("Promised Receipt Date"):
-                po_promise_date_list.append('1976-01-01')
-            else :
-                po_promise_date_list.append(second_dict.get("Promised Receipt Date"))
-            if not second_dict.get("Expected Receipt Date"):
-                po_expect_date_list.append('1976-01-01')
-            else :
-                po_expect_date_list.append(second_dict.get("Expected Receipt Date"))
-
-
-        latest_po_promise_date = max(po_promise_date_list)
-        latest_po_expect_date = max(po_expect_date_list)
-
-        promise_latest_index_list = []
-        expect_latest_index_list = []
-
-
-
-        if datetime.now() - datetime.strptime(latest_po_promise_date, FMT) < Valid_Purchase_Period:
-            for index in range(len(po_promise_date_list)):
-                if latest_po_promise_date == po_promise_date_list[index] and latest_po_promise_date != '0-0-0':
-                    promise_latest_index_list.append(index)
-            if len(promise_latest_index_list) > 1:
-                print("the promise list is {}".format(po_promise_date_list))
-                print("process purchase data error, there are two identical latest promise receipt date for {}".format(
-                        item_no
-                ))
-        
-        if datetime.now() - datetime.strptime(latest_po_expect_date, FMT)  < Valid_Purchase_Period:
-            for index in range(len(po_expect_date_list)):
-                if latest_po_expect_date == po_expect_date_list[index] and latest_po_expect_date != '0-0-0' :
-                    expect_latest_index_list.append(index)
-            if len(expect_latest_index_list) > 1:
-                print("the expect list is {}".format(po_expect_date_list))
-                print("process purchase data error, there are two identical latest expected receipt date for {}".format(
-                        item_no
-                ))
-
-        tmp_dict = {}
-        
-        # only one entry in the file, just pick it
-        if len(expect_latest_index_list) == 1 and len(promise_latest_index_list) == 0:
-            tmp_dict.update({po_no_list[expect_latest_index_list[0]]:top_dict[po_no_list[expect_latest_index_list[0]]]})
-
-        elif len(expect_latest_index_list) == 0 and len(promise_latest_index_list) == 1:
-            tmp_dict.update({po_no_list[promise_latest_index_list[0]]:top_dict[po_no_list[promise_latest_index_list[0]]]})
-        
-
-        elif len(expect_latest_index_list) > 1:
-            # the date were found in same PO
-            tmp_dict.update({po_no_list[expect_latest_index_list[0]]:top_dict[po_no_list[expect_latest_index_list[0]]]})
-            tmp_dict.update({po_no_list[expect_latest_index_list[1]]:top_dict[po_no_list[expect_latest_index_list[1]]]})
-
-        if tmp_dict:
-            purchase_dict.update({item_no:tmp_dict})            
-
+       
     with open('Purchase Lines_step_2.json', "w") as json_file:
         json.dump(purchase_dict, json_file, indent = 4) 
 
@@ -384,6 +313,66 @@ def step_2_processsing():
     with open('customer order list_step_2.json', "w") as json_file:
         json.dump(filtered_dict, json_file, indent = 4) 
 
+# def step_2_1_processing():
+#     with open('customer order list_step_2.json') as json_file:
+#         custom_dict = json.load(json_file)
+
+#     tmp_dict = {}
+#     for combined_key, top_dict in custom_dict.items():
+#         _, bom_no = combined_key.split('---')
+#         ship_date = top_dict["Shipment Date"]
+
+#         tmp_dict[bom_no + '---' + ship_date] = top_dict
+
+#     dict_1 = OrderedDict(sorted(tmp_dict.items()))
+#     bom_no_date_list = dict_1.keys()
+
+#     for index in range(len(bom_no_date_list)):
+
+#         current_dict_key = bom_no_date_list[index]
+
+#         if float(dict_1[current_dict_key]["Quantity on Hand from Item"]) == 0.0 or 
+
+#         modified_record_list = []
+
+#         current_on_hand_quantity = float(dict_1[current_dict_key]["Quantity on Hand from Item"])
+#         # on hand quantity is not enough to cover the first customer order
+#         if current_on_hand_quantity <= float(dict_1[current_dict_key]["Quantity"]):
+#             dict_1[current_dict_key]["Quantity"] -= dict_1[current_dict_key]["Quantity on Hand from Item"]
+#             dict_1[current_dict_key]["Quantity on Hand from Item"] = 0
+
+#             # find all record with same bom_no with different date, and modify their on hand value to zero to indicate all 
+#             # on hand have been used by current order`
+#             bom_no, _ = current_dict_key.split('---')
+#             for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
+#                 next_record_dict_key = bom_no_date_list[index + offset]
+#                 # same bom_no with variuos date
+#                 if bom_no in next_record_dict_key:
+#                     dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
+#                 # end of iteration, because no more bom_no found
+#                 else:
+#                     break
+#         # on hand quantity could cover the first customer order, make the quantity of current quantity to zero to indicate no demand
+#         # at all, but need cotinue this process to modify next customer order
+#         else:
+            
+#             modified_record_list.append(index)
+#             dict_1[current_dict_key]["Quantity on Hand from Item"] -= dict_1[current_dict_key]["Quantity"] 
+#             dict_1[current_dict_key]["Quantity"] = 0
+
+#             bom_no, _ = current_dict_key.split('---')
+#             for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
+#                 next_record_dict_key = bom_no_date_list[index + offset]
+#                 # same bom_no with variuos date
+#                 if bom_no in next_record_dict_key:
+#                     dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
+#                 # end of iteration, because no more bom_no found
+#                 else:
+#                     break
+
+
+#     with open('customer order list_step_2_1.json', "w") as json_file:
+#         json.dump(dict_1, json_file, indent = 4) 
 
 # use bom_no_id in the BOM List as the key to reorganize the customer order list to gather all customer order which belong to
 # one bom item
@@ -446,6 +435,8 @@ def step_3_processing():
 
 # print("now is {}".format(date_time.strftime(FMT)))
 
+
+
 def write_to_xls_file():
     final_order_dict = OrderedDict()
     with open('customer order list_step_3.json') as json_file:
@@ -453,10 +444,6 @@ def write_to_xls_file():
 
     book = openpyxl.Workbook()
     sheet = book.active
-
-
-
-
 
     row_1_list = [  "Vendor",
                     'Production Code',
@@ -496,8 +483,7 @@ def write_to_xls_file():
 
     for offset in range(14):
         next_day = Current_day + timedelta(days=offset+1)
-       
-        row_1_list.append(WEEK_DAY[next_day.weekday()] + '\n' + next_day.strftime(FMT))
+        row_1_list.append(next_day.strftime(FMT))
 
     for offset_days in range(1, 29):
         if (offset_days % 7) == 0:
@@ -513,7 +499,14 @@ def write_to_xls_file():
     for column_cnt in range(len(row_1_list)):
         sheet.cell(row=row_cnt, column=column_cnt+1).value = row_1_list[column_cnt]
         sheet.cell(row=row_cnt, column=column_cnt+1).font = header_font
-        sheet.cell(row=row_cnt, column=column_cnt+1).fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type = "solid")
+        try:
+            date = datetime.strptime(row_1_list[column_cnt], FMT)
+            year =date.strftime(YEAR_FMT)
+
+            if date.date() in holidays.Canada(years = int(year)).keys() or date.weekday() > 4:
+                sheet.cell(row=row_cnt, column=column_cnt+1).fill = PatternFill(start_color="B3F2FF", end_color="B3F2FF", fill_type = "solid")
+        except:
+            sheet.cell(row=row_cnt, column=column_cnt+1).fill = PatternFill(start_color="B3F2FF", end_color="B3F2FF", fill_type = "solid")
 
     sheet.freeze_panes = "A2"
 
@@ -522,12 +515,88 @@ def write_to_xls_file():
     row_cnt += 1
     column_cnt = 1
 
+    with open('Purchase Lines_step_2.json') as json_file:
+        purchase_dict = json.load(json_file)
+
     for bom_key, top_dict in final_order_dict.items():
         ttt_dict = {}
         if top_dict.get("Duty Class", "unknown") in Interest_Duty_List:
 
             demand_dict = defaultdict(lambda: float(0))
             demand_dict_tmp = defaultdict(lambda: float(0))
+
+            if bom_key in purchase_dict:
+                open_po_tmp_dict = {}
+                promised_date_list = []
+                request_date_list = []
+                purchase_promise_dict = purchase_dict[bom_key]['promise']
+                for date_seq, quantity in purchase_promise_dict.items():
+                    date, _ = date_seq.split('---')
+                    
+                    if date not in promised_date_list:
+                        promised_date_list.append(date)
+                        
+                        open_po_tmp_dict[date] = quantity
+                    else:
+                        open_po_tmp_dict[date] += quantity
+
+                no_week_day_list = []
+                for day in row_1_list[0:-4]:
+                    no_week_day_list.append(day)
+
+                open_po_dict = defaultdict(lambda: float(0))
+                # extra processing to accumulate the demand in the future 4 weeks
+                for timestamp in open_po_tmp_dict.keys():
+                    if timestamp in future_4_weeks_day_list:
+                        time_diff = datetime.strptime(timestamp, FMT) - datetime.strptime(future_4_weeks_day_list[0], FMT)
+                        if timedelta(days=0) < time_diff <= timedelta(days=6):
+                            open_po_dict[future_4_weeks_day_list[6]] +=open_po_tmp_dict[timestamp]
+
+                        elif timedelta(days=6) < time_diff <= timedelta(days=13):
+                            open_po_dict[future_4_weeks_day_list[13]] +=open_po_tmp_dict[timestamp]
+                        elif timedelta(days=13) < time_diff <= timedelta(days=20):
+                            open_po_dict[future_4_weeks_day_list[20]] +=open_po_tmp_dict[timestamp]
+                        elif timedelta(days=20) < time_diff <= timedelta(days=27):
+                            open_po_dict[future_4_weeks_day_list[27]] +=open_po_tmp_dict[timestamp]
+                    elif timestamp not in no_week_day_list:
+                        open_po_dict['Past Due'] += open_po_tmp_dict[timestamp]
+                    else:
+                        open_po_dict[timestamp] = open_po_tmp_dict[timestamp]
+
+                purchase_receipt_tmp_dict = {}
+                request_date_list = []
+                purchase_request_dict = purchase_dict[bom_key]['request']
+                for date_seq, quantity in purchase_request_dict.items():
+                    date, _ = date_seq.split('---')
+                    
+                    if date not in request_date_list:
+                        request_date_list.append(date)
+                        
+                        purchase_receipt_tmp_dict[date] = quantity
+                    else:
+                        purchase_receipt_tmp_dict[date] += quantity
+
+                purchase_receipt_dict = defaultdict(lambda: float(0))
+
+                # extra processing to accumulate the demand in the future 4 weeks
+                for timestamp in purchase_receipt_tmp_dict.keys():
+                    if timestamp in future_4_weeks_day_list:
+                        time_diff = datetime.strptime(timestamp, FMT) - datetime.strptime(future_4_weeks_day_list[0], FMT)
+                        if timedelta(days=0) < time_diff <= timedelta(days=6):
+                            purchase_receipt_dict[future_4_weeks_day_list[6]] +=purchase_receipt_tmp_dict[timestamp]
+
+                        elif timedelta(days=6) < time_diff <= timedelta(days=13):
+                            purchase_receipt_dict[future_4_weeks_day_list[13]] +=purchase_receipt_tmp_dict[timestamp]
+                        elif timedelta(days=13) < time_diff <= timedelta(days=20):
+                            purchase_receipt_dict[future_4_weeks_day_list[20]] +=purchase_receipt_tmp_dict[timestamp]
+                        elif timedelta(days=20) < time_diff <= timedelta(days=27):
+                            purchase_receipt_dict[future_4_weeks_day_list[27]] +=purchase_receipt_tmp_dict[timestamp]
+                    elif timestamp not in no_week_day_list:
+                        purchase_receipt_dict['Past Due'] += purchase_receipt_tmp_dict[timestamp]
+                    else:
+                        purchase_receipt_dict[timestamp] = purchase_receipt_tmp_dict[timestamp]
+
+
             for middle_key, middle_dict in top_dict.items():
                 if isinstance(middle_dict, dict):
                     per_unit_production_quantity = float(middle_dict["Production Quantity"])
@@ -597,14 +666,23 @@ def write_to_xls_file():
                 if 'Demand' in specific_column_list[sub_row]:
                     # put demand value for each following 14 days
                     for column_no in range(7, len(row_1_list)):
-                        if row_1_list[column_no].splitlines()[-1] in demand_dict:
-                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(demand_dict[row_1_list[column_no].splitlines()[-1]]))
-                            if 'Sat' in row_1_list[column_no] or 'Sun' in row_1_list[column_no]:
-                                sheet.cell(row=row_cnt, column=column_no + 1).fill = PatternFill(start_color="B3F2FF", end_color="B3F2FF", fill_type = "solid")
-
-
+                        if row_1_list[column_no] in demand_dict:
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(demand_dict[row_1_list[column_no]]))
                             total_demand += sheet.cell(row=row_cnt, column=column_no + 1).value
 
+                elif 'All Open PO & BPO'in specific_column_list[sub_row]:
+                    # put demand value for each following 14 days
+                    for column_no in range(7, len(row_1_list)):
+                        if row_1_list[column_no] in open_po_dict:
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(open_po_dict[row_1_list[column_no]]))
+
+                elif 'Purchases Receipts'in specific_column_list[sub_row]:
+                    # put demand value for each following 14 days
+                    for column_no in range(7, len(row_1_list)):
+                        if row_1_list[column_no] in purchase_receipt_dict:
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(purchase_receipt_dict[row_1_list[column_no]]))
+
+                
                 elif 'On Hand (W1)' in specific_column_list[sub_row]:
                     sheet.cell(row=row_cnt, column=8).value = int(top_dict.get("W1", 0))
 
@@ -621,11 +699,12 @@ def write_to_xls_file():
     print("write {} row".format(row_cnt))
 
                 
-    book.save("sample.xlsx")
+    book.save("output_{}.xlsx".format(datetime.now().strftime(FMT)))
 
 
-# read_data_from_files(file_dict)
+read_data_from_files(file_dict)
 step_2_processsing()
+# step_2_1_processing()
 step_3_processing()
 write_to_xls_file()
 
