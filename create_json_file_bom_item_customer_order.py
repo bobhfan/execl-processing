@@ -13,34 +13,11 @@ import sys
 FMT = '%Y-%m-%d'
 YEAR_FMT = '%Y'
   
-
-MAXIMUM_DUPLICATE_ORDER = 100
-
 # time = datetime.strptime("2021-02-13 00:00:00", FMT)
 
 # date_time = datetime.now()
 
 # print("now is {}".format(date_time.strftime(FMT)))
-
-WEEK_DAY = {
-    0 : 'Mon',
-    1 : "Tue",
-    2 : "Wen",
-    3 : "Thu",
-    4 : "Fri",
-    5 : "Sat",
-    6 : "Sun",
-}
-
-WORKING_DIR = ''
-
-file_dict = {
-                WORKING_DIR + 'BOM list.xlsx' : 1,
-                WORKING_DIR + 'Item List.xlsx' : 1,
-                WORKING_DIR + 'customer order list.xlsx': 1,
-                WORKING_DIR + 'Purchase Lines.xlsx':1,
-            }
-
 
 Item_List_Interest_Field_List = ['Duty Class', 
                                 'W1',
@@ -63,12 +40,7 @@ Purchase_Lines_Interest_Dict = {
         'Outstanding Quantity' : 'Outstanding Quantity' ,
     }
 
-Dict_step_2 = {
-                WORKING_DIR + 'BOM list_step_1.json' : {},
-                WORKING_DIR + 'Item List_step_1.json' : {},
-                WORKING_DIR + 'customer order list_step_1.json': {},
-                WORKING_DIR + 'Purchase Lines_step_1.json' : {},
-                }
+
 
 def read_data_from_files(file_dict):
 
@@ -237,16 +209,24 @@ def read_data_from_files(file_dict):
 
 # append the detail info of each BOM item extract from Item List_step_1.json to generate BOM List_step_2.json file
 # Expand the Customer order list item to all the BOM items involved into and filter the info based on the Interest_Duty_Class 
-def step_2_processsing():
+def step_2_processsing(dict_step_2):
 
     bom_dict = {}
-    for file_name in Dict_step_2.keys():
+    for file_name in dict_step_2.keys():
+        if "BOM" in file_name:
+            bom_name = file_name
+        elif "Item" in file_name:
+            item_name = file_name
+        elif "Purchase" in file_name:
+            purchase_name = file_name
+        elif "customer" in file_name:
+            customer_name = file_name
         with open(file_name) as json_file:
-            Dict_step_2[file_name] = json.load(json_file)
+            dict_step_2[file_name] = json.load(json_file)
 
     purchase_dict = {}
 
-    for item_no, top_dict in Dict_step_2[WORKING_DIR + 'Purchase Lines_step_1.json'].items():
+    for item_no, top_dict in dict_step_2[purchase_name].items():
         tmp_dict = OrderedDict(sorted(top_dict['promise'].items()))
         purchase_dict[item_no] = {}
         purchase_dict[item_no]['promise'] = tmp_dict
@@ -254,7 +234,7 @@ def step_2_processsing():
         purchase_dict[item_no]['request'] = tmp_dict
 
        
-    with open(WORKING_DIR + 'Purchase Lines_step_2.json', "w") as json_file:
+    with open(purchase_name.replace('_1.j', '_2.j'), "w") as json_file:
         json.dump(purchase_dict, json_file, indent = 4) 
 
     
@@ -290,17 +270,17 @@ def step_2_processsing():
     # with open('BOM list_step_2.json', "w") as json_file:
     #     json.dump(bom_dict, json_file, indent = 4)    
 
-    bom_dict = Dict_step_2[WORKING_DIR + 'BOM list_step_1.json']
+    bom_dict = dict_step_2[bom_name]
     filtered_dict = {}
 
-    for key, value in Dict_step_2[WORKING_DIR + 'customer order list_step_1.json'].items():
+    for key, value in dict_step_2[customer_name].items():
         customer_document_no, bom_no = key.split('---')
         customer_dict = value
         # search the bom_no in the item list to determine if there is some storage for this to compensate the quantity
-        if bom_no in Dict_step_2[WORKING_DIR + 'Item List_step_1.json']:
-            if 'FG' in Dict_step_2[WORKING_DIR + 'Item List_step_1.json'][bom_no].get("Item Category Code", 'unknown'):
-                on_hand_quantity = Dict_step_2[WORKING_DIR + 'Item List_step_1.json'][bom_no].get("Quantity on Hand", 0.0)
-                Dict_step_2[WORKING_DIR + 'customer order list_step_1.json'][key].update({"Quantity on Hand from Item" : on_hand_quantity})                
+        if bom_no in dict_step_2[item_name]:
+            if 'FG' in dict_step_2[item_name][bom_no].get("Item Category Code", 'unknown'):
+                on_hand_quantity = dict_step_2[item_name][bom_no].get("Quantity on Hand", 0.0)
+                dict_step_2[customer_name][key].update({"Quantity on Hand from Item" : on_hand_quantity})                
 
         if bom_no in bom_dict:
             # print("there is associatekey in BOM for {}".format(value['Document No.']))
@@ -314,7 +294,7 @@ def step_2_processsing():
         else:
             print("customer order list err: {} no associate entry in BOM".format(bom_no))
 
-    with open(WORKING_DIR + 'customer order list_step_2.json', "w") as json_file:
+    with open(customer_name.replace('_1.j', '_2.j'), "w") as json_file:
         json.dump(filtered_dict, json_file, indent = 4) 
 
 # def step_2_1_processing():
@@ -397,9 +377,9 @@ def step_2_processsing():
 
 # use bom_no_id in the BOM List as the key to reorganize the customer order list to gather all customer order which belong to
 # one bom item
-def step_3_processing():
+def step_3_processing(file_name_step_3_dict):
 
-    with open(WORKING_DIR + 'customer order list_step_2.json') as json_file:
+    with open(file_name_step_3_dict['customer_name']) as json_file:
         custom_dict = json.load(json_file)
 
     final_dict = {}
@@ -432,7 +412,7 @@ def step_3_processing():
                         final_dict[real_key][custom_no].update({key:value})                
 
 
-    with open(WORKING_DIR + 'Item List_step_1.json') as json_file:
+    with open(file_name_step_3_dict['item_name']) as json_file:
         item_dict = json.load(json_file)
 
     # append item info at top_dict for each item_no
@@ -451,16 +431,19 @@ def step_3_processing():
    
         # print("{} of duty '{}' showd up in {} customer orders".format(bom_key, top_dict['Duty Class'], order_cnt))
     
-    with open(WORKING_DIR + 'customer order list_step_3.json', "w") as json_file:
+    with open(file_name_step_3_dict['customer_name'].replace('_2.j', '_3.j'), "w") as json_file:
         json.dump(final_dict, json_file, indent = 4)     
 
 # print("now is {}".format(date_time.strftime(FMT)))
 
 
+# def distribute_data_to_different_period(input_dict, days_list):
 
-def write_to_xls_file():
+
+
+def write_to_xls_file(file_name_step_4_dict):
     final_order_dict = OrderedDict()
-    with open(WORKING_DIR + 'customer order list_step_3.json') as json_file:
+    with open(file_name_step_4_dict['customer_name']) as json_file:
         final_order_dict = json.load(json_file) 
 
     book = openpyxl.Workbook()
@@ -537,7 +520,7 @@ def write_to_xls_file():
     row_cnt += 1
     column_cnt = 1
 
-    with open(WORKING_DIR + 'Purchase Lines_step_2.json') as json_file:
+    with open(file_name_step_4_dict['purchase_name']) as json_file:
         purchase_dict = json.load(json_file)
 
     for bom_key, top_dict in final_order_dict.items():
@@ -570,7 +553,7 @@ def write_to_xls_file():
                 # extra processing to accumulate the demand in the future 4 weeks
                 for timestamp in open_po_tmp_dict.keys():
                     if timestamp in future_4_weeks_day_list:
-                        time_diff = datetime.strptime(timestamp, FMT) - datetime.strptime(future_4_weeks_day_list[0], FMT)
+                        time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
                         if timedelta(days=0) < time_diff <= timedelta(days=6):
                             open_po_dict[future_4_weeks_day_list[6]] +=open_po_tmp_dict[timestamp]
 
@@ -603,7 +586,7 @@ def write_to_xls_file():
                 # extra processing to accumulate the demand in the future 4 weeks
                 for timestamp in purchase_receipt_tmp_dict.keys():
                     if timestamp in future_4_weeks_day_list:
-                        time_diff = datetime.strptime(timestamp, FMT) - datetime.strptime(future_4_weeks_day_list[0], FMT)
+                        time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
                         if timedelta(days=0) < time_diff <= timedelta(days=6):
                             purchase_receipt_dict[future_4_weeks_day_list[6]] +=purchase_receipt_tmp_dict[timestamp]
 
@@ -651,7 +634,7 @@ def write_to_xls_file():
             # extra processing to accumulate the demand in the future 4 weeks
             for timestamp in demand_dict_tmp.keys():
                 if timestamp in future_4_weeks_day_list:
-                    time_diff = datetime.strptime(timestamp, FMT) - datetime.strptime(future_4_weeks_day_list[0], FMT)
+                    time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
                     if timedelta(days=0) < time_diff <= timedelta(days=6):
                         demand_dict[future_4_weeks_day_list[6]] +=demand_dict_tmp[timestamp]
 
@@ -721,14 +704,8 @@ def write_to_xls_file():
     print("write {} row".format(row_cnt))
 
                 
-    book.save(WORKING_DIR + "output_{}.xlsx".format(datetime.now().strftime(FMT)))
+    book.save("output_{}.xlsx".format(datetime.now().strftime(FMT)))
 
-
-# # read_data_from_files(file_dict)
-# step_2_processsing()
-# # step_2_1_processing()
-# step_3_processing()
-# write_to_xls_file()
 
 def build_parser():
     '''
@@ -764,20 +741,44 @@ def main():
 
 
     #Commnd from Zabbix server to query the RPD stats
-    WORKING_DIR = args.dst_dir
+    working_dir = args.dst_dir
+
+    file_dict = {
+                working_dir + 'BOM list.xlsx' : 1,
+                working_dir + 'Item List.xlsx' : 1,
+                working_dir + 'customer order list.xlsx': 1,
+                working_dir + 'Purchase Lines.xlsx':1,
+            }
+
+    dict_step_2 = {
+                working_dir + 'BOM list_step_1.json' : {},
+                working_dir + 'Item List_step_1.json' : {},
+                working_dir + 'customer order list_step_1.json': {},
+                working_dir + 'Purchase Lines_step_1.json' : {},
+                }
+
+    file_name_step_3_dict = {
+                            'customer_name' : working_dir + 'customer order list_step_2.json',
+                            'item_name' : working_dir + 'Item List_step_1.json',
+    }
+
+    file_name_step_4_dict = {
+                            'customer_name' : working_dir + 'customer order list_step_3.json',
+                            'purchase_name' : working_dir + 'Purchase Lines_step_2.json',
+    }
 
     if 'skip' in args.running_steps:
-    # read_data_from_files(file_dict)
-        step_2_processsing()
+        step_2_processsing(dict_step_2)
         # step_2_1_processing()
-        step_3_processing()
-        write_to_xls_file()
+        step_3_processing(file_name_step_3_dict)
+        write_to_xls_file(file_name_step_4_dict)
+
     elif 'all' in args.running_steps:
         read_data_from_files(file_dict)
-        step_2_processsing()
+        step_2_processsing(dict_step_2)
         # step_2_1_processing()
-        step_3_processing()
-        write_to_xls_file()
+        step_3_processing(file_name_step_3_dict)
+        write_to_xls_file(file_name_step_4_dict)
 
 if __name__ == '__main__':
     main()
