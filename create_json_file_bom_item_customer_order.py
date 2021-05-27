@@ -437,7 +437,46 @@ def step_3_processing(file_name_step_3_dict):
 # print("now is {}".format(date_time.strftime(FMT)))
 
 
-# def distribute_data_to_different_period(input_dict, days_list):
+def generate_puchase_data(input_dict):
+    exist_date_list = []
+    output_dict = {}
+    for date_seq, quantity in input_dict.items():
+        date, _ = date_seq.split('---')
+        
+        if date not in exist_date_list:
+            exist_date_list.append(date)
+            
+            output_dict[date] = quantity
+        else:
+            output_dict[date] += quantity   
+    
+    return output_dict
+
+def distribute_data_to_different_period(input_dict, days_list, future_4_weeks_day_list):
+    
+    single_days_list = days_list[0:-4]
+    output_dict = {}
+
+    output_dict = defaultdict(lambda: float(0))
+    # extra processing to accumulate the demand in the future 4 weeks
+    for timestamp in input_dict.keys():
+        if timestamp in future_4_weeks_day_list:
+            time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
+            if timedelta(days=0) <= time_diff <= timedelta(days=6):
+                output_dict[future_4_weeks_day_list[6]] += input_dict[timestamp]
+
+            elif timedelta(days=6) < time_diff <= timedelta(days=13):
+                output_dict[future_4_weeks_day_list[13]] += input_dict[timestamp]
+            elif timedelta(days=13) < time_diff <= timedelta(days=20):
+                output_dict[future_4_weeks_day_list[20]] += input_dict[timestamp]
+            elif timedelta(days=20) < time_diff <= timedelta(days=27):
+                output_dict[future_4_weeks_day_list[27]] += input_dict[timestamp]
+        elif timestamp not in single_days_list:
+            output_dict['Past Due'] += input_dict[timestamp]
+        else:
+            output_dict[timestamp] = input_dict[timestamp]  
+
+    return output_dict  
 
 
 
@@ -531,75 +570,12 @@ def write_to_xls_file(file_name_step_4_dict):
             demand_dict_tmp = defaultdict(lambda: float(0))
 
             if bom_key in purchase_dict:
-                open_po_tmp_dict = {}
-                promised_date_list = []
-                request_date_list = []
-                purchase_promise_dict = purchase_dict[bom_key]['promise']
-                for date_seq, quantity in purchase_promise_dict.items():
-                    date, _ = date_seq.split('---')
-                    
-                    if date not in promised_date_list:
-                        promised_date_list.append(date)
-                        
-                        open_po_tmp_dict[date] = quantity
-                    else:
-                        open_po_tmp_dict[date] += quantity
 
-                no_week_day_list = []
-                for day in row_1_list[0:-4]:
-                    no_week_day_list.append(day)
+                purchase_promise_intermediate_dict = generate_puchase_data(purchase_dict[bom_key]['promise'])
+                purchase_promise_dict = distribute_data_to_different_period(purchase_promise_intermediate_dict, row_1_list, future_4_weeks_day_list)
 
-                open_po_dict = defaultdict(lambda: float(0))
-                # extra processing to accumulate the demand in the future 4 weeks
-                for timestamp in open_po_tmp_dict.keys():
-                    if timestamp in future_4_weeks_day_list:
-                        time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
-                        if timedelta(days=0) < time_diff <= timedelta(days=6):
-                            open_po_dict[future_4_weeks_day_list[6]] +=open_po_tmp_dict[timestamp]
-
-                        elif timedelta(days=6) < time_diff <= timedelta(days=13):
-                            open_po_dict[future_4_weeks_day_list[13]] +=open_po_tmp_dict[timestamp]
-                        elif timedelta(days=13) < time_diff <= timedelta(days=20):
-                            open_po_dict[future_4_weeks_day_list[20]] +=open_po_tmp_dict[timestamp]
-                        elif timedelta(days=20) < time_diff <= timedelta(days=27):
-                            open_po_dict[future_4_weeks_day_list[27]] +=open_po_tmp_dict[timestamp]
-                    elif timestamp not in no_week_day_list:
-                        open_po_dict['Past Due'] += open_po_tmp_dict[timestamp]
-                    else:
-                        open_po_dict[timestamp] = open_po_tmp_dict[timestamp]
-
-                purchase_receipt_tmp_dict = {}
-                request_date_list = []
-                purchase_request_dict = purchase_dict[bom_key]['request']
-                for date_seq, quantity in purchase_request_dict.items():
-                    date, _ = date_seq.split('---')
-                    
-                    if date not in request_date_list:
-                        request_date_list.append(date)
-                        
-                        purchase_receipt_tmp_dict[date] = quantity
-                    else:
-                        purchase_receipt_tmp_dict[date] += quantity
-
-                purchase_receipt_dict = defaultdict(lambda: float(0))
-
-                # extra processing to accumulate the demand in the future 4 weeks
-                for timestamp in purchase_receipt_tmp_dict.keys():
-                    if timestamp in future_4_weeks_day_list:
-                        time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
-                        if timedelta(days=0) < time_diff <= timedelta(days=6):
-                            purchase_receipt_dict[future_4_weeks_day_list[6]] +=purchase_receipt_tmp_dict[timestamp]
-
-                        elif timedelta(days=6) < time_diff <= timedelta(days=13):
-                            purchase_receipt_dict[future_4_weeks_day_list[13]] +=purchase_receipt_tmp_dict[timestamp]
-                        elif timedelta(days=13) < time_diff <= timedelta(days=20):
-                            purchase_receipt_dict[future_4_weeks_day_list[20]] +=purchase_receipt_tmp_dict[timestamp]
-                        elif timedelta(days=20) < time_diff <= timedelta(days=27):
-                            purchase_receipt_dict[future_4_weeks_day_list[27]] +=purchase_receipt_tmp_dict[timestamp]
-                    elif timestamp not in no_week_day_list:
-                        purchase_receipt_dict['Past Due'] += purchase_receipt_tmp_dict[timestamp]
-                    else:
-                        purchase_receipt_dict[timestamp] = purchase_receipt_tmp_dict[timestamp]
+                purchase_request_intermediate_dict = generate_puchase_data(purchase_dict[bom_key]['request'])
+                purchase_request_dict = distribute_data_to_different_period(purchase_request_intermediate_dict, row_1_list, future_4_weeks_day_list)
 
 
             for middle_key, middle_dict in top_dict.items():
@@ -609,13 +585,6 @@ def write_to_xls_file(file_name_step_4_dict):
                     order_quantity = float(middle_dict["Outstanding Quantity"])
                     demand_quantity = order_quantity * per_unit_production_quantity * (1.0 + scrap * 0.01)
 
-                    # print("demand for bom:{} on order {} '{}'   is   {:.3f}        = {}    *   {}*    (1.0 + {} * 0.01)".format(bom_key, middle_key, middle_dict["Shipment Date"], demand_quantity, 
-                    #                         order_quantity, 
-                    #                         per_unit_production_quantity, 
-                    #                         scrap))
-
-                    # ttt_dict[middle_dict["Shipment Date"] + '-' +  middle_key] = "{:.3f}  = {} * {} * (1.0 + {} * 0.01)".format(demand_quantity, order_quantity, per_unit_production_quantity,  scrap)
-                    
                     # till now only occur once
                     if middle_dict["Shipment Date"] not in demand_dict_tmp:
                         demand_dict_tmp.update({middle_dict["Shipment Date"]: demand_quantity})
@@ -624,34 +593,7 @@ def write_to_xls_file(file_name_step_4_dict):
                         demand_sum = demand_dict_tmp[middle_dict["Shipment Date"]] + demand_quantity
                         demand_dict_tmp.update({middle_dict["Shipment Date"]: demand_sum})
 
-            # print("after analyze same date for shipment this is the result ")
-            # pprint.pprint(dict(demand_dict_tmp))
-            # pprint.pprint(dict(sorted(ttt_dict.items())))
-
-
-            # print('tmp_dict is {}'.format(demand_dict_tmp))
-
-            # extra processing to accumulate the demand in the future 4 weeks
-            for timestamp in demand_dict_tmp.keys():
-                if timestamp in future_4_weeks_day_list:
-                    time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
-                    if timedelta(days=0) < time_diff <= timedelta(days=6):
-                        demand_dict[future_4_weeks_day_list[6]] +=demand_dict_tmp[timestamp]
-
-                    elif timedelta(days=6) < time_diff <= timedelta(days=13):
-                        demand_dict[future_4_weeks_day_list[13]] +=demand_dict_tmp[timestamp]
-                    elif timedelta(days=13) < time_diff <= timedelta(days=20):
-                        demand_dict[future_4_weeks_day_list[20]] +=demand_dict_tmp[timestamp]
-                    elif timedelta(days=20) < time_diff <= timedelta(days=27):
-                        demand_dict[future_4_weeks_day_list[27]] +=demand_dict_tmp[timestamp]
-
-                
-            # print('dict is {}'.format(demand_dict))
-            # add record of each signle day into the lookup dictionary
-            for key, value in demand_dict_tmp.items():
-                demand_dict.update({key: value})
-
-
+            demand_dict = distribute_data_to_different_period(demand_dict_tmp, row_1_list, future_4_weeks_day_list)
 
             # here put each value into cell
             # loop for 8 sub_row for each item no.                        
@@ -678,14 +620,14 @@ def write_to_xls_file(file_name_step_4_dict):
                 elif 'All Open PO & BPO'in specific_column_list[sub_row]:
                     # put demand value for each following 14 days
                     for column_no in range(7, len(row_1_list)):
-                        if row_1_list[column_no] in open_po_dict:
-                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(purchase_receipt_dict[row_1_list[column_no]]))
+                        if row_1_list[column_no] in purchase_promise_dict:
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(purchase_promise_dict[row_1_list[column_no]]))
 
                 elif 'Purchases Receipts'in specific_column_list[sub_row]:
                     # put demand value for each following 14 days
                     for column_no in range(7, len(row_1_list)):
-                        if row_1_list[column_no] in purchase_receipt_dict:
-                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(open_po_dict[row_1_list[column_no]]))
+                        if row_1_list[column_no] in purchase_request_dict:
+                            sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(purchase_request_dict[row_1_list[column_no]]))
 
                 
                 elif 'On Hand (W1)' in specific_column_list[sub_row]:
