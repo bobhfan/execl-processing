@@ -9,6 +9,7 @@ import json
 from collections import OrderedDict, defaultdict
 import holidays
 import sys
+import os
 
 FMT = '%Y-%m-%d'
 YEAR_FMT = '%Y'
@@ -74,7 +75,7 @@ def read_data_from_files(file_dict):
 
                 # This is for extract item list info to create the dict for the first step
                 # {item_no : { interesting_field : value}}
-                if 'Item List.xlsx' in file_name :
+                if 'item list.xlsx' in file_name :
                     if 'No.' in field_name_dict[colum_n] \
                         and ' ' not in field_name_dict[colum_n]:
 
@@ -94,12 +95,12 @@ def read_data_from_files(file_dict):
 
                 # This is for extract purchase line info to create the dict for the first step
                 # {item_no : {po_no : { Interest_description : value }}}
-                if 'Purchase Lines.xlsx' in file_name :
+                if 'purchase lines.xlsx' in file_name :
                     if 'No.' in field_name_dict[colum_n] and ' ' not in field_name_dict[colum_n] :
                         item_no = sheet.cell(row=line, column=colum_n).value
-                        if 'RA 266' in item_no:
-                            print("got it")
-                            import pdb; pdb.set_trace()
+                        # if 'RA 266' in item_no:
+                        #     print("got it")
+                        #     import pdb; pdb.set_trace()
 
                     elif 'Document No.' in field_name_dict[colum_n] :
                         document_no = sheet.cell(row=line, column=colum_n).value
@@ -121,7 +122,7 @@ def read_data_from_files(file_dict):
 
                 # {bom_no : {item_no : { production_variable : value}}}
                 # To have a specific production done may need multiple items involved in the production
-                elif 'BOM list.xlsx' in file_name :
+                elif 'bom list.xlsx' in file_name :
 
                     if 'Production BOM No.' in field_name_dict[colum_n]:
                         dict_key = sheet.cell(row=line, column=colum_n).value
@@ -172,7 +173,7 @@ def read_data_from_files(file_dict):
 
 
             # when the processing end for one row should update the "No.->":Duty Class into the dict
-            if 'Item List.xlsx' in file_name :
+            if 'item list.xlsx' in file_name :
                 # if not item_block or 'No' in item_block :
                 data_dict.update({item_no : tmp_dict})
 
@@ -180,10 +181,10 @@ def read_data_from_files(file_dict):
                 real_key = customer_document_no + '---' + str(dict_key)
                 data_dict.update({real_key: tmp_dict})
 
-            elif 'BOM list.xlsx' in file_name:
+            elif 'bom list.xlsx' in file_name:
                 if not material_dict_key:
                     material_dict_key = 'unknown'
-                    print("BOM list err: empty BOM No. for {} ".format(dict_key))
+                    print("bom list err: empty BOM No. for {} ".format(dict_key))
                 if dict_key not in data_dict:
                     data_dict.update({dict_key:{}})
 
@@ -191,7 +192,7 @@ def read_data_from_files(file_dict):
                             material_dict_key :
                             tmp_dict})
 
-            elif 'Purchase Lines.xlsx' in file_name:
+            elif 'purchase lines.xlsx' in file_name:
                 if item_no not in data_dict:
                     data_dict[item_no] = {}
                     data_dict[item_no]['promise'] = {}
@@ -211,17 +212,17 @@ def read_data_from_files(file_dict):
 
 
 
-# append the detail info of each BOM item extract from Item List_step_1.json to generate BOM List_step_2.json file
+# append the detail info of each BOM item extract from item list_step_1.json to generate BOM List_step_2.json file
 # Expand the Customer order list item to all the BOM items involved into and filter the info based on the Interest_Duty_Class
 def step_2_processsing(dict_step_2):
 
     bom_dict = {}
     for file_name in dict_step_2.keys():
-        if "BOM" in file_name:
+        if "bom" in file_name:
             bom_name = file_name
-        elif "Item" in file_name:
+        elif "item" in file_name:
             item_name = file_name
-        elif "Purchase" in file_name:
+        elif "purchase" in file_name:
             purchase_name = file_name
         elif "customer" in file_name:
             customer_name = file_name
@@ -268,8 +269,8 @@ def step_2_processsing(dict_step_2):
     with open(customer_name.replace('_1.j', '_2.j'), "w") as json_file:
         json.dump(filtered_dict, json_file, indent = 4)
 
-def step_2_1_processing():
-    with open('./0527/customer order list_step_2.json') as json_file:
+def step_2_1_processing(working_dir):
+    with open(working_dir+'customer order list_step_2.json') as json_file:
         custom_dict = json.load(json_file)
 
     tmp_dict = {}
@@ -277,11 +278,7 @@ def step_2_1_processing():
 
     bom_no_list =[combined_key.split('---')[-1] for combined_key in custom_dict.keys()]
 
-    print("all customer order is {}".format(len(bom_no_list)))
-
     bom_no_no_duplicate_list = list(set(bom_no_list))
-
-    print("bom number involved is {}".format(len(bom_no_no_duplicate_list)))
 
     # find all order with same bom_no and sorted by ship date
     for key in bom_no_no_duplicate_list:
@@ -305,71 +302,69 @@ def step_2_1_processing():
             quantity_on_hand = custom_dict[search_key].get('Quantity on Hand from Item', 0)
             tmp_2_dict[bom_no].append((combined_key, order_quantiry, quantity_on_hand))
 
+    tmp_3_dict = {}
     for bom_no, entries in tmp_2_dict.items():
+
         sum_of_quantity = 0
+        all_clear = False
+        tmp_list = []
         for index in range(len(entries)):
             sum_of_quantity += entries[index][1]
             if sum_of_quantity >= entries[0][-1]:
                 rest_quantity = sum_of_quantity - entries[0][-1]
                 break
+            if index == len(entries) - 1 and sum_of_quantity <= entries[0][-1]:
+                rest_quantity = sum_of_quantity - entries[0][-1]
+                all_clear = True
+                print("bom_no: {} all of element need be changed to zero, and still rest of {}".format(bom_no, rest_quantity))
         
-        if index < len(entries):
+        if index == 0 and len(entries) == 1 and all_clear == False:
+            tmp_list.append((entries[0][0], rest_quantity, 0))
+        elif all_clear == False:
             print("bom_no: {} only [0 : {}] need be changed and the rest is {}".format(bom_no, index, rest_quantity))
-        else:
-            print("bom_no: {} all of element need be changed".format(bom_no))
+            for cnt in range(index):
+                tmp_list.append((entries[cnt][0], 0, 0))
+            tmp_list.append((entries[index][0], rest_quantity, 0))
+            for cnt in range(index+1, len(entries)):
+                tmp_list.append((entries[cnt][0], entries[cnt][1], 0))
 
+        if all_clear:
+            for cnt in range(len(entries)):
+                tmp_list.append((entries[cnt][0], 0, 0))
 
+        tmp_3_dict[bom_no] = tmp_list
+            
 
-    with open('./0527/customer order list_step_2_1.json', "w") as json_file:
-        json.dump(tmp_2_dict, json_file, indent = 4)
+    for key in tmp_2_dict.keys():
+        if "PI 05350" == key:
+            print(tmp_3_dict[key])
+            print(tmp_2_dict[key])
+        if not (len(tmp_2_dict[key]) == len(tmp_3_dict[key])) :
+            print("{}'s entries {} not equal {}".format(key, len(tmp_2_dict[key]), len(tmp_3_dict[key]) ))
 
+        for entry in tmp_3_dict[key]:
+            if entry[1] < 0:
+                print("{} demand < 0".format(key))
 
-    # dict_1 = OrderedDict(sorted(tmp_dict.items()))
-    # bom_no_date_list = dict_1.keys()
+    with open(working_dir+'customer order list_step_2_1_interm.json', "w") as json_file:
+        json.dump(tmp_3_dict, json_file, indent = 4)
 
-    # for index in range(len(bom_no_date_list)):
+    # ley's compensate the quantiry of each customer order
+    for bom_no in tmp_3_dict.keys():
+        for entry in tmp_3_dict[bom_no]:
+            bom_no, shipment_date, customer_no = entry[0].split('---')
+            modified_quantity = entry[1]
+            modified_on_hand_quantity = entry[2]
 
-    #     current_dict_key = bom_no_date_list[index]
+            if custom_dict['---'.join((customer_no,bom_no))]['Shipment Date'] == shipment_date:
+                custom_dict['---'.join((customer_no,bom_no))]['Outstanding Quantity'] = str(modified_quantity) + '---' + 'Mod'
+                custom_dict['---'.join((customer_no,bom_no))]['Quantity on Hand from Item'] = modified_on_hand_quantity
 
-    #     if float(dict_1[current_dict_key]["Quantity on Hand from Item"]) == 0.0 or
+            else :
+                print('something error with record of {}'.format('---'.join((customer_no,bom_no))))
 
-    #     modified_record_list = []
-
-    #     current_on_hand_quantity = float(dict_1[current_dict_key]["Quantity on Hand from Item"])
-    #     # on hand quantity is not enough to cover the first customer order
-    #     if current_on_hand_quantity <= float(dict_1[current_dict_key]["Quantity"]):
-    #         dict_1[current_dict_key]["Quantity"] -= dict_1[current_dict_key]["Quantity on Hand from Item"]
-    #         dict_1[current_dict_key]["Quantity on Hand from Item"] = 0
-
-    #         # find all record with same bom_no with different date, and modify their on hand value to zero to indicate all
-    #         # on hand have been used by current order`
-    #         bom_no, _ = current_dict_key.split('---')
-    #         for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
-    #             next_record_dict_key = bom_no_date_list[index + offset]
-    #             # same bom_no with variuos date
-    #             if bom_no in next_record_dict_key:
-    #                 dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
-    #             # end of iteration, because no more bom_no found
-    #             else:
-    #                 break
-    #     # on hand quantity could cover the first customer order, make the quantity of current quantity to zero to indicate no demand
-    #     # at all, but need cotinue this process to modify next customer order
-    #     else:
-
-    #         modified_record_list.append(index)
-    #         dict_1[current_dict_key]["Quantity on Hand from Item"] -= dict_1[current_dict_key]["Quantity"]
-    #         dict_1[current_dict_key]["Quantity"] = 0
-
-    #         bom_no, _ = current_dict_key.split('---')
-    #         for offset in range(1, MAXIMUM_DUPLICATE_ORDER):
-    #             next_record_dict_key = bom_no_date_list[index + offset]
-    #             # same bom_no with variuos date
-    #             if bom_no in next_record_dict_key:
-    #                 dict_1[next_record_dict_key]["Quantity on Hand from Item"] = 0
-    #             # end of iteration, because no more bom_no found
-    #             else:
-    #                 break
-
+    with open(working_dir+'customer order list_step_3.json', "w") as json_file:
+        json.dump(custom_dict, json_file, indent = 4)
 
 # use bom_no_id in the BOM List as the key to reorganize the customer order list to gather all customer order which belong to
 # one bom item
@@ -427,7 +422,7 @@ def step_3_processing(file_name_step_3_dict):
 
         # print("{} of duty '{}' showd up in {} customer orders".format(bom_key, top_dict['Duty Class'], order_cnt))
 
-    with open(file_name_step_3_dict['customer_name'].replace('_2.j', '_3.j'), "w") as json_file:
+    with open(file_name_step_3_dict['customer_name'].replace('_3.j', '_4.j'), "w") as json_file:
         json.dump(final_dict, json_file, indent = 4)
 
 # print("now is {}".format(date_time.strftime(FMT)))
@@ -561,9 +556,12 @@ def write_to_xls_file(file_name_step_4_dict):
     with open(file_name_step_4_dict['purchase_name']) as json_file:
         purchase_dict = json.load(json_file)
 
+    modified_customer_order_dict = {}
     for bom_key, top_dict in final_order_dict.items():
-        ttt_dict = {}
-        if bom_key == "RA 263" or bom_key == "RA 254":
+
+        modified_customer_order_dict[bom_key] = []
+
+        if bom_key == "RC 077" or bom_key == "RA 254":
             print("Got RA 263 or 254")
 
         if top_dict.get("Duty Class", "unknown") in Interest_Duty_List:
@@ -588,7 +586,12 @@ def write_to_xls_file(file_name_step_4_dict):
                 if isinstance(middle_dict, dict):
                     per_unit_production_quantity = float(middle_dict["Production Quantity"])
                     scrap = float(middle_dict["Scrap %"])
-                    order_quantity = float(middle_dict["Outstanding Quantity"])
+                    # todo@ add color to identify modified
+                    if '---Mod' in middle_dict["Outstanding Quantity"]:
+                        order_quantity = float(middle_dict["Outstanding Quantity"].replace('---Mod', ''))
+                        # add a dict to storage the modified quantity for this bom
+                        modified_customer_order_dict[bom_key].append(middle_dict["Shipment Date"])
+
                     demand_quantity = order_quantity * per_unit_production_quantity * (1.0 + scrap * 0.01)
 
                     # till now only occur once
@@ -622,6 +625,11 @@ def write_to_xls_file(file_name_step_4_dict):
                     for column_no in range(7, len(row_1_list)):
                         if row_1_list[column_no] in demand_dict:
                             sheet.cell(row=row_cnt, column=column_no + 1).value = int(round(demand_dict[row_1_list[column_no]]))
+
+                            # change the demand be modified by on hand storage to another color
+                            if row_1_list[column_no] in modified_customer_order_dict[bom_key]:
+                                sheet.cell(row=row_cnt, column=column_no + 1).font = Font( color='B30000', bold=True, italic=True)
+
                             total_demand += sheet.cell(row=row_cnt, column=column_no + 1).value
 
                 elif 'All Open PO & BPO'in specific_column_list[sub_row]:
@@ -736,40 +744,54 @@ def main():
     #Commnd from Zabbix server to query the RPD stats
     working_dir = args.dst_dir
 
+
+
+    data_files = [(x[0], x[2]) for x in os.walk(working_dir)]
+    for path_files in data_files:
+        for file_name in path_files[1]:
+            if '.xlsx' in file_name and 'Zone' not in file_name:
+                print(file_name.lower())
+                create_date = datetime.fromtimestamp(os.stat(working_dir+file_name).st_ctime).date()
+                if datetime.now().date() == create_date:
+                    print("Create on same day, continue")
+                    os.rename(working_dir+file_name, working_dir+file_name.lower())
+                else:
+                    print("{} created on different day, exit please double check".format(working_dir+file_name))
+
     file_dict = {
-                # working_dir + 'BOM list.xlsx' : 1,
-                # working_dir + 'Item List.xlsx' : 1,
-                # working_dir + 'customer order list.xlsx': 1,
-                working_dir + 'Purchase Lines.xlsx':1,
+                working_dir + 'bom list.xlsx' : 1,
+                working_dir + 'item list.xlsx' : 1,
+                working_dir + 'customer order list.xlsx': 1,
+                working_dir + 'purchase lines.xlsx':1,
             }
 
     dict_step_2 = {
-                working_dir + 'BOM list_step_1.json' : {},
-                working_dir + 'Item List_step_1.json' : {},
+                working_dir + 'bom list_step_1.json' : {},
+                working_dir + 'item list_step_1.json' : {},
                 working_dir + 'customer order list_step_1.json': {},
-                working_dir + 'Purchase Lines_step_1.json' : {},
+                working_dir + 'purchase lines_step_1.json' : {},
                 }
 
     file_name_step_3_dict = {
-                            'customer_name' : working_dir + 'customer order list_step_2.json',
-                            'item_name' : working_dir + 'Item List_step_1.json',
+                            'customer_name' : working_dir + 'customer order list_step_3.json',
+                            'item_name' : working_dir + 'item list_step_1.json',
     }
 
     file_name_step_4_dict = {
-                            'customer_name' : working_dir + 'customer order list_step_3.json',
-                            'purchase_name' : working_dir + 'Purchase Lines_step_2.json',
+                            'customer_name' : working_dir + 'customer order list_step_4.json',
+                            'purchase_name' : working_dir + 'purchase lines_step_2.json',
     }
 
     if 'skip' in args.running_steps:
         step_2_processsing(dict_step_2)
-        # step_2_1_processing()
+        step_2_1_processing(working_dir)
         step_3_processing(file_name_step_3_dict)
         write_to_xls_file(file_name_step_4_dict)
 
     elif 'all' in args.running_steps:
         read_data_from_files(file_dict)
         step_2_processsing(dict_step_2)
-        # step_2_1_processing()
+        step_2_1_processing(working_dir)
         step_3_processing(file_name_step_3_dict)
         write_to_xls_file(file_name_step_4_dict)
 
