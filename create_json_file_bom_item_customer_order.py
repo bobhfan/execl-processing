@@ -1,6 +1,6 @@
 import openpyxl
 from openpyxl.styles import Font
-from openpyxl.styles import PatternFill
+from openpyxl.styles import PatternFill, Alignment
 from datetime import datetime, timedelta
 from datetime import date as date_op
 import pprint
@@ -19,6 +19,16 @@ YEAR_FMT = '%Y'
 # date_time = datetime.now()
 
 # print("now is {}".format(date_time.strftime(FMT)))
+
+WEEK_DAY = {
+    0 : 'Mon',
+    1 : "Tue",
+    2 : "Wen",
+    3 : "Thu",
+    4 : "Fri",
+    5 : "Sat",
+    6 : "Sun",
+}
 
 Item_List_Interest_Field_List = ['Duty Class',
                                 'W1',
@@ -534,15 +544,21 @@ def write_to_xls_file(file_name_step_4_dict):
     for column_cnt in range(len(row_1_list)):
         sheet.cell(row=row_cnt, column=column_cnt+1).value = row_1_list[column_cnt]
         sheet.cell(row=row_cnt, column=column_cnt+1).font = header_font
+        sheet.cell(row=row_cnt, column=column_cnt+1).alignment = Alignment(horizontal='center')
 
         if column_cnt > len(row_1_list) - 5 :
             sheet.cell(row=row_cnt, column=column_cnt+1).fill = PatternFill(start_color="CDD1D6", end_color="CDD1D6", fill_type = "solid")
         try:
             date = datetime.strptime(row_1_list[column_cnt], FMT)
+            week_day = WEEK_DAY[date.weekday()]
+            sheet.cell(row=row_cnt, column=column_cnt+1).value += ('\n' + week_day)
+
             year =date.strftime(YEAR_FMT)
 
             if date.date() in holidays.Canada(years = int(year)).keys() or date.weekday() > 4:
                 sheet.cell(row=row_cnt, column=column_cnt+1).fill = PatternFill(start_color="B3F2FF", end_color="B3F2FF", fill_type = "solid")
+            elif date.date() in holidays.Canada(years = int(year)).keys():
+                sheet.cell(row=row_cnt, column=column_cnt+1).value += ('\n' + 'holiday')
         except:
             sheet.cell(row=row_cnt, column=column_cnt+1).fill = PatternFill(start_color="B3F2FF", end_color="B3F2FF", fill_type = "solid")
 
