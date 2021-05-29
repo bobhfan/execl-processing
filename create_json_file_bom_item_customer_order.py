@@ -11,6 +11,10 @@ import holidays
 import sys
 import os
 
+
+from read_data import read_data
+from file_info import File_Info_Dict
+
 FMT = '%Y-%m-%d'
 YEAR_FMT = '%Y'
 
@@ -30,196 +34,11 @@ WEEK_DAY = {
     6 : "Sun",
 }
 
-Item_List_Interest_Field_List = ['Duty Class',
-                                'W1',
-                                'W2',
-                                'Base Unit of Measure' ,
-                                'Vendor No.',
-                                'Item Category Code',
-                                'Quantity on Hand',
-                                ]
 
 Interest_Duty_List = ["FILM", "BAG",  "SEASONING"]
 
 Valid_Purchase_Period = timedelta(days=365)
 Current_day = datetime.today() + timedelta(days=-1)
-
-Purchase_Lines_Interest_Dict = {
-        'Promised Receipt Date':'Promised Receipt Date',
-        'Quantity' : 'Purchase Quantity',
-        'Requested Receipt Date' : 'Requested Receipt Date',
-        'Outstanding Quantity' : 'Outstanding Quantity' ,
-    }
-
-
-def read_data_from_files(file_dict):
-
-    for file_name, start_row in file_dict.items():
-        wb= openpyxl.load_workbook(file_name)
-        names = wb.sheetnames
-        print(wb.sheetnames)
-        sheet = wb.active
-
-        data_dict = {}
-
-        # key -> column_no
-        # value ->header description
-        field_name_dict = {}
-
-        for x in range (start_row,start_row + 1):
-
-            for y in range(1,sheet.max_column + 1):
-                field_name_dict.update({y:sheet.cell(row=x,column=y).value})
-
-        pp = pprint.PrettyPrinter(indent=4)
-        pp.pprint(field_name_dict)
-
-        print("{}'s total row is {}".format(file_name, sheet.max_row))
-
-        # iterate through excel
-        seq_no = 1
-        for line in range(start_row + 1, sheet.max_row+1):
-        # for line in range(3, 155):
-            tmp_dict = {}
-            for colum_n in range(1, sheet.max_column+1):
-
-                # This is for extract item list info to create the dict for the first step
-                # {item_no : { interesting_field : value}}
-                if 'item list.xlsx' in file_name :
-                    if 'No.' in field_name_dict[colum_n] \
-                        and ' ' not in field_name_dict[colum_n]:
-
-                        if isinstance(sheet.cell(row=line, column=colum_n).value, float):
-                            item_no = str(int(sheet.cell(row=line, column=colum_n).value))
-                        else:
-                            item_no = sheet.cell(row=line, column=colum_n).value
-
-                    elif field_name_dict[colum_n] in Item_List_Interest_Field_List:
-                        tmp_dict.update({field_name_dict[colum_n] : sheet.cell(row=line, column=colum_n).value})
-
-                    elif 'Description' in field_name_dict[colum_n] and ' ' not in field_name_dict[colum_n]:
-                        tmp_dict.update({field_name_dict[colum_n] : sheet.cell(row=line, column=colum_n).value})
-
-                    elif 'Blocked' in field_name_dict[colum_n]:
-                        item_block = sheet.cell(row=line, column=colum_n).value
-
-                # This is for extract purchase line info to create the dict for the first step
-                # {item_no : {po_no : { Interest_description : value }}}
-                if 'purchase lines.xlsx' in file_name :
-                    if 'No.' in field_name_dict[colum_n] and ' ' not in field_name_dict[colum_n] :
-                        item_no = sheet.cell(row=line, column=colum_n).value
-                        # if 'RA 266' in item_no:
-                        #     print("got it")
-                        #     import pdb; pdb.set_trace()
-
-                    elif 'Document No.' in field_name_dict[colum_n] :
-                        document_no = sheet.cell(row=line, column=colum_n).value
-
-                    elif "Promised Receipt Date" in field_name_dict[colum_n] :
-                        if sheet.cell(row=line, column=colum_n).value:
-                            promise_date = sheet.cell(row=line, column=colum_n).value.strftime(FMT)
-                        else:
-                            promise_date = ''
-
-                    elif "Outstanding Quantity" in field_name_dict[colum_n] :
-                        quantity = sheet.cell(row=line, column=colum_n).value
-
-                    elif "Requested Receipt Date" in field_name_dict[colum_n] :
-                        if sheet.cell(row=line, column=colum_n).value and isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
-                            request_date = sheet.cell(row=line, column=colum_n).value.strftime(FMT)
-                        else:
-                            request_date = ''
-
-                # {bom_no : {item_no : { production_variable : value}}}
-                # To have a specific production done may need multiple items involved in the production
-                elif 'bom list.xlsx' in file_name :
-
-                    if 'Production BOM No.' in field_name_dict[colum_n]:
-                        dict_key = sheet.cell(row=line, column=colum_n).value
-                        # have this code first time should create empty dict for further
-
-
-                    elif 'No.' in field_name_dict[colum_n] and ' ' not in field_name_dict[colum_n]:
-                        material_dict_key = sheet.cell(row=line, column=colum_n).value
-
-                    else:
-                        if "Description" not in field_name_dict[colum_n]:
-                            if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
-                                tmp_dict.update(
-                                    {field_name_dict[colum_n] :
-                                    sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
-                            else:
-
-                                tmp_dict.update({
-                                    field_name_dict[colum_n] :
-                                    sheet.cell(row=line, column=colum_n).value})
-
-                # each customer order associated with a specific bom_no
-                # {customer_order+bom_no : {customer_order_field : value}}
-                elif 'customer order list.xlsx' in file_name :
-                    if 'No.' in field_name_dict[colum_n] \
-                        and ' ' not in field_name_dict[colum_n]:
-                        dict_key = sheet.cell(row=line, column=colum_n).value
-
-                    elif 'Document No.' in field_name_dict[colum_n]:
-                        customer_document_no = sheet.cell(row=line, column=colum_n).value
-
-                    elif 'Outstanding Quantity' in field_name_dict[colum_n] and not ' ' in field_name_dict[colum_n]:
-                        tmp_dict.update({
-                                'Outstanding Quantity' :
-                                sheet.cell(row=line, column=colum_n).value})
-
-                    else:
-                        if "Description" not in field_name_dict[colum_n]:
-                            if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
-                                tmp_dict.update(
-                                    {field_name_dict[colum_n] :
-                                    sheet.cell(row=line, column=colum_n).value.strftime(FMT)})
-                            else:
-
-                                tmp_dict.update({
-                                    field_name_dict[colum_n] :
-                                    sheet.cell(row=line, column=colum_n).value})
-
-
-            # when the processing end for one row should update the "No.->":Duty Class into the dict
-            if 'item list.xlsx' in file_name :
-                # if not item_block or 'No' in item_block :
-                data_dict.update({item_no : tmp_dict})
-
-            elif 'customer order list.xlsx' in file_name:
-                real_key = customer_document_no + '---' + str(dict_key)
-                data_dict.update({real_key: tmp_dict})
-
-            elif 'bom list.xlsx' in file_name:
-                if not material_dict_key:
-                    material_dict_key = 'unknown'
-                    print("bom list err: empty BOM No. for {} ".format(dict_key))
-                if dict_key not in data_dict:
-                    data_dict.update({dict_key:{}})
-
-                data_dict[dict_key].update({
-                            material_dict_key :
-                            tmp_dict})
-
-            elif 'purchase lines.xlsx' in file_name:
-                if item_no not in data_dict:
-                    data_dict[item_no] = {}
-                    data_dict[item_no]['promise'] = {}
-                    data_dict[item_no]['request'] = {}
-
-                if 'promise_date' in locals() and promise_date:
-                    data_dict[item_no]['promise'][promise_date + '---' + str(seq_no)] = quantity
-                elif 'request_date' in locals() and request_date:
-                    data_dict[item_no]['request'][request_date + '---' + str(seq_no)] = quantity
-
-                seq_no += 1
-
-        # pp.pprint(custom_order_list_dict)
-        with open(file_name.replace('.xlsx', '_step_1.json'), "w") as json_file:
-            json.dump(data_dict, json_file, indent = 4)
-
-
 
 
 # append the detail info of each BOM item extract from item list_step_1.json to generate BOM List_step_2.json file
@@ -241,7 +60,25 @@ def step_2_processsing(dict_step_2):
 
     purchase_dict = {}
 
-    for item_no, top_dict in dict_step_2[purchase_name].items():
+    seq_no = 0
+    for item_no_seq, internal_dict in dict_step_2[purchase_name].items():
+        item_no, _ = item_no_seq.split('---')
+        if item_no not in purchase_dict:
+            purchase_dict[item_no] = {}
+            purchase_dict[item_no]['promise'] = {}
+            purchase_dict[item_no]['request'] = {}
+
+        if internal_dict['Promised Receipt Date']:
+            purchase_dict[item_no]['promise'][internal_dict['Promised Receipt Date'] + '---' + str(seq_no)] = \
+                                            internal_dict['Outstanding Quantity']
+        elif internal_dict['Requested Receipt Date']:
+            purchase_dict[item_no]['request'][internal_dict['Requested Receipt Date'] + '---' + str(seq_no)] = \
+                                            internal_dict['Outstanding Quantity']
+
+        seq_no += 1        
+
+
+    for item_no, top_dict in purchase_dict.items():
         tmp_dict = OrderedDict(sorted(top_dict['promise'].items()))
         purchase_dict[item_no] = {}
         purchase_dict[item_no]['promise'] = tmp_dict
@@ -486,6 +323,15 @@ def write_to_xls_file(file_name_step_4_dict):
     with open(file_name_step_4_dict['customer_name']) as json_file:
         final_order_dict = json.load(json_file)
 
+    with open(file_name_step_4_dict['genpak_name']) as json_file:
+        genpak_name_dict = json.load(json_file)
+
+    with open(file_name_step_4_dict['superpufft']) as json_file:
+        superpufft_dict = json.load(json_file)
+
+    genpak_field_list = ["GP OH", "WIP", "On Order", "Target Date", "Ship Qy", "Del Date"]
+    supperpufft_field_list = ["Current Stock/KG", "Next Available date & Quantity/KG"]
+
     book = openpyxl.Workbook()
     sheet = book.active
 
@@ -495,7 +341,6 @@ def write_to_xls_file(file_name_step_4_dict):
                     'Description',
                     "Base Unit of Measure",
                     "Total Demand",
-                    # "Total on Hand",
                     "Key Description",
                     "Past Due",
                 ]
@@ -571,6 +416,8 @@ def write_to_xls_file(file_name_step_4_dict):
 
     with open(file_name_step_4_dict['purchase_name']) as json_file:
         purchase_dict = json.load(json_file)
+
+
 
     modified_customer_order_dict = {}
     for bom_key, top_dict in final_order_dict.items():
@@ -667,6 +514,16 @@ def write_to_xls_file(file_name_step_4_dict):
                 elif 'On Hand (W2)' in specific_column_list[sub_row]:
                     sheet.cell(row=row_cnt, column=8).value = int(top_dict.get("W2", 0))
 
+                elif 'Vendor Floor Stock' in specific_column_list[sub_row]:
+                    column_no = 8
+                    if bom_key in genpak_name_dict:
+                        for index in range(len(genpak_field_list)):
+                            sheet.cell(row=row_cnt, column=column_no+index).value = genpak_name_dict[bom_key][genpak_field_list[index]]
+                    elif bom_key in superpufft_dict:
+                        for index in range(len(supperpufft_field_list)):
+                            sheet.cell(row=row_cnt, column=column_no+index).value = superpufft_dict[bom_key][supperpufft_field_list[index]]
+
+
                 sheet.cell(row=row_cnt, column=6).value = int(round(total_demand))
 
                 row_cnt += 1
@@ -758,9 +615,8 @@ def main():
 
 
     #Commnd from Zabbix server to query the RPD stats
-    working_dir = args.dst_dir
-
-
+    # working_dir = args.dst_dir
+    working_dir = './'
 
     data_files = [(x[0], x[2]) for x in os.walk(working_dir)]
     for path_files in data_files:
@@ -774,19 +630,11 @@ def main():
                 else:
                     print("{} created on different day, exit please double check".format(working_dir+file_name))
 
-    file_dict = {
-                working_dir + 'bom list.xlsx' : 1,
-                working_dir + 'item list.xlsx' : 1,
-                working_dir + 'customer order list.xlsx': 1,
-                working_dir + 'purchase lines.xlsx':1,
-            }
-
-    dict_step_2 = {
-                working_dir + 'bom list_step_1.json' : {},
-                working_dir + 'item list_step_1.json' : {},
-                working_dir + 'customer order list_step_1.json': {},
-                working_dir + 'purchase lines_step_1.json' : {},
-                }
+    # step_2 running some data manipulation on the step_1 json files
+    step_2_file_dict = {}
+    for file_dict in File_Info_Dict:
+        file_name = file_dict['file_name'].replace('.xlsx', '_step_1.json')
+        step_2_file_dict[file_name] = {}
 
     file_name_step_3_dict = {
                             'customer_name' : working_dir + 'customer order list_step_3.json',
@@ -796,20 +644,35 @@ def main():
     file_name_step_4_dict = {
                             'customer_name' : working_dir + 'customer order list_step_4.json',
                             'purchase_name' : working_dir + 'purchase lines_step_2.json',
+                            'genpak_name' : working_dir + 'genpak releases - current_step_1.json',
+                            'superpufft' : working_dir + 'superpufft 2020 pricing  inventory report may 27, 2021_step_1.json',
     }
 
-    if 'skip' in args.running_steps:
-        step_2_processsing(dict_step_2)
-        step_2_1_processing(working_dir)
-        step_3_processing(file_name_step_3_dict)
-        write_to_xls_file(file_name_step_4_dict)
+    if 'all' in args.running_steps:
 
-    elif 'all' in args.running_steps:
-        read_data_from_files(file_dict)
-        step_2_processsing(dict_step_2)
-        step_2_1_processing(working_dir)
-        step_3_processing(file_name_step_3_dict)
-        write_to_xls_file(file_name_step_4_dict)
+        # step_1 reading all data into json file
+        for file_dict in File_Info_Dict:
+            file_name = file_dict['file_name']
+            info_dict = read_data(file_dict)
+            with open(file_name.replace('.xlsx', '_step_1.json'), "w") as json_file:
+                json.dump(info_dict, json_file, indent = 4) 
+            if 'bom' not in file_name:
+                print("{} record in {}".format(len(info_dict), file_name))
+            else:
+                total_item_no = 0
+                for key, value in info_dict.items():
+                    total_item_no += len(value)
+
+                print("{} record in the {}".format(total_item_no, file_name))
+
+
+    step_2_processsing(step_2_file_dict)
+
+    step_2_1_processing(working_dir)
+
+    step_3_processing(file_name_step_3_dict)
+
+    write_to_xls_file(file_name_step_4_dict)
 
 if __name__ == '__main__':
     main()

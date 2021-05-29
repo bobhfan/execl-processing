@@ -1,55 +1,72 @@
 import openpyxl
+from openpyxl.styles import Font
+from openpyxl.styles import PatternFill, Alignment
 from datetime import datetime, timedelta
+from datetime import date as date_op
 import pprint
+import argparse
+import json
+from collections import OrderedDict, defaultdict
+import holidays
+import sys
+import os
 
-FMT = '%Y-%m-%d %H:%M:%S'
+
+FMT = '%d-%b-%Y'
 FMT_1 = '%Y-%m-%d, %H:%M:%S'
 
-time = datetime.strptime("2021-02-13 00:00:00", FMT)
+time = date_op(2021, 1, 1)
 
-date_time = datetime.now()
+# date_time = datetime.now()
 
-print("now is {}".format(date_time.strftime(FMT)))
+# print("now is {}".format(date_time.strftime(FMT)))
 
-wb= openpyxl.load_workbook('BR-May-20-2021a-mod-1.xlsx')
-names = wb.sheetnames
+
+# date = datetime.now()
+
+file_name = 'Cycle Count.xlsx'
+
+wb= openpyxl.load_workbook(file_name)
 print(wb.sheetnames)
-sheet=wb["Buyer's Report"]
-colum_dict = {row_5 : {}}
+sheet = wb.active
 
-for x in range (5,6):
-    date_count = 0
+# for line in range(1, sheet.max_row+1):
+for line in range(5, 6):
+    for colum_n in range(1, sheet.max_column+1):
+        print("{} and {}".format(sheet.cell(row=line, column=colum_n).value, type(sheet.cell(row=line, column=colum_n).value)))
 
-    for y in range(1,50):
+start_row = 5
+field_name_dict = {}
 
-        if isinstance(sheet.cell(row=x,column=y).value, datetime):
-            if date_count == 0:
-                colum_name_dict.update({y:time})
-            elif date_count < 4:
-                time_str_list = time.strftime(FMT).split('-')
-                time_str_list[1] = str(int(time_str_list[1]) + date_count)
-                new_time = "-".join(time_str_list)
-                colum_name_dict.update({y:datetime.strptime(new_time, FMT)})
+for x in range (start_row,start_row + 1):
+    for y in range(1,sheet.max_column + 1):
+        field_name_dict.update({y:sheet.cell(row=x,column=y).value})
 
-            elif date_count == 4 or date_count == 5:
-                time_str_list = time.strftime(FMT).split('-')
-                time_str_list[1] = str(int(time_str_list[1]) + date_count + 1).zfill(2)
-                time_str_list[2] = "01 00:00:00"
-                new_time = "-".join(time_str_list)
-                colum_name_dict.update({y:datetime.strptime(new_time, FMT) - timedelta(days=1)})     
+print("Ther are {} rows in {} sheet of {} ".format(sheet.max_row, wb.sheetnames[0], file_name )
+seq_no = 1
+data_dict = {}
+for line in range(start_row + 1, sheet.max_row+1):
+# for line in range(3, 155):
+    tmp_dict = {}
+    for colum_n in range(1, sheet.max_column+1):
+        # This is for extract item list info to create the dict for the first step
+        # {item_no : { interesting_field : value}}
+        if field_name_dict[colum_n]:
+            if 'Item Code' in field_name_dict[colum_n]:
+                if isinstance(sheet.cell(row=line, column=colum_n).value, float):
+                    item_no = str(int(sheet.cell(row=line, column=colum_n).value))
+                else:
+                    item_no = sheet.cell(row=line, column=colum_n).value
 
-            elif date_count > 5 and date_count < 18:
-                start_time = colum_name_dict[18]
-                colum_name_dict.update({y:start_time + timedelta(days=date_count - 6 + 7)})    
- 
-            elif date_count >= 18:
-                start_time = colum_name_dict[41]
-                colum_name_dict.update({y:start_time + timedelta(days=(date_count - 17) * 7)})  
-            date_count += 1
+            else:
+                if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):
+                    date_value = sheet.cell(row=line, column=colum_n).value.strftime(FMT)
+                    tmp_dict.update({field_name_dict[colum_n] : date_value})
+                else:
+                    tmp_dict.update({field_name_dict[colum_n] : sheet.cell(row=line, column=colum_n).value})
+    
+    data_dict[item_no] = tmp_dict
 
-        else:
-            colum_name_dict.update({y:sheet.cell(row=x,column=y).value})
-
-pp = pprint.PrettyPrinter(indent=4)
-pp.pprint(colum_name_dict)
-
+        # pp.pprint(custom_order_list_dict)
+with open(file_name.replace('.xlsx', '_step_1.json'), "w") as json_file:
+    json.dump(data_dict, json_file, indent = 4)
