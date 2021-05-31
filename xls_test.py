@@ -12,8 +12,8 @@ import sys
 import os
 
 
-FMT = '%d-%b-%Y'
-FMT_1 = '%Y-%m-%d, %H:%M:%S'
+# FMT = '%d-%b-%Y'
+FMT = '%Y-%m-%d'
 
 time = date_op(2021, 1, 1)
 
@@ -24,25 +24,30 @@ time = date_op(2021, 1, 1)
 
 # date = datetime.now()
 
-file_name = 'Cycle Count.xlsx'
+file_name = 'Canadian Tire May 2021.xlsx'
 
-wb= openpyxl.load_workbook(file_name)
+wb= openpyxl.load_workbook(file_name, data_only=True)
 print(wb.sheetnames)
 sheet = wb.active
 
 # for line in range(1, sheet.max_row+1):
-for line in range(5, 6):
-    for colum_n in range(1, sheet.max_column+1):
-        print("{} and {}".format(sheet.cell(row=line, column=colum_n).value, type(sheet.cell(row=line, column=colum_n).value)))
+# for line in range(3, 4):
+#     for colum_n in range(1, sheet.max_column+1):
+#         print("{} and {}".format(sheet.cell(row=line, column=colum_n).value, type(sheet.cell(row=line, column=colum_n).value)))
 
-start_row = 5
+start_row = 3
 field_name_dict = {}
 
 for x in range (start_row,start_row + 1):
     for y in range(1,sheet.max_column + 1):
         field_name_dict.update({y:sheet.cell(row=x,column=y).value})
 
-print("Ther are {} rows in {} sheet of {} ".format(sheet.max_row, wb.sheetnames[0], file_name )
+for x in range (5, 6):
+    for y in range(1,sheet.max_column + 1):
+        if sheet.cell(row=x,column=y).value:
+            print(sheet.cell(row=x,column=y).value, sep='*', end=" ")
+
+print("Ther are {} rows in {} sheet of {} ".format(sheet.max_row, wb.sheetnames[0], file_name ))
 seq_no = 1
 data_dict = {}
 for line in range(start_row + 1, sheet.max_row+1):
@@ -52,7 +57,7 @@ for line in range(start_row + 1, sheet.max_row+1):
         # This is for extract item list info to create the dict for the first step
         # {item_no : { interesting_field : value}}
         if field_name_dict[colum_n]:
-            if 'Item Code' in field_name_dict[colum_n]:
+            if 'Item &' == field_name_dict[colum_n]:
                 if isinstance(sheet.cell(row=line, column=colum_n).value, float):
                     item_no = str(int(sheet.cell(row=line, column=colum_n).value))
                 else:

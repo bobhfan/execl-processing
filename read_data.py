@@ -12,7 +12,7 @@ def read_data(file_info_dict):
     datetime_fmt = file_info_dict['datetime_fmt']
     dict_level = file_info_dict['dict_level']
 
-    wb= openpyxl.load_workbook(file_name)
+    wb= openpyxl.load_workbook(file_name, data_only = True)
     print(wb.sheetnames)
     sheet = wb.active
     if file_name == 'superpufft 2020 pricing  inventory report may 27, 2021.xlsx':
@@ -30,7 +30,6 @@ def read_data(file_info_dict):
         seq_no = 1
 
     second_key = ''
-    current_kg = 0.0
     data_dict = {}
     for line in range(header_row + 1, sheet.max_row+1):
     # for line in range(3, 155):
@@ -50,12 +49,6 @@ def read_data(file_info_dict):
                         second_key = str(int(sheet.cell(row=line, column=colum_n).value))
                     else:
                         second_key = sheet.cell(row=line, column=colum_n).value                
-
-                # special handling for accumulate multiple instance
-                elif 'Current Stock/KG' == field_name_dict[colum_n]:
-                    if sheet.cell(row=line, column=colum_n).value:
-                        current_kg += float(sheet.cell(row=line, column=colum_n).value)
-                    tmp_dict.update({field_name_dict[colum_n] : current_kg})
 
                 elif field_name_dict[colum_n] in interest_field_list:
                     if isinstance(sheet.cell(row=line, column=colum_n).value, datetime):

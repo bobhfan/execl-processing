@@ -330,7 +330,7 @@ def write_to_xls_file(file_name_step_4_dict):
         superpufft_dict = json.load(json_file)
 
     genpak_field_list = ["GP OH", "WIP", "On Order", "Target Date", "Ship Qy", "Del Date"]
-    supperpufft_field_list = ["Current Stock/KG", "Next Available date & Quantity/KG"]
+    supperpufft_field_list = ["Total/KG", "Next Available date & Quantity/KG"]
 
     book = openpyxl.Workbook()
     sheet = book.active
@@ -615,8 +615,8 @@ def main():
 
 
     #Commnd from Zabbix server to query the RPD stats
-    # working_dir = args.dst_dir
-    working_dir = './'
+    working_dir = args.dst_dir
+    # working_dir = './'
 
     data_files = [(x[0], x[2]) for x in os.walk(working_dir)]
     for path_files in data_files:
@@ -633,7 +633,7 @@ def main():
     # step_2 running some data manipulation on the step_1 json files
     step_2_file_dict = {}
     for file_dict in File_Info_Dict:
-        file_name = file_dict['file_name'].replace('.xlsx', '_step_1.json')
+        file_name = working_dir + file_dict['file_name'].replace('.xlsx', '_step_1.json')
         step_2_file_dict[file_name] = {}
 
     file_name_step_3_dict = {
@@ -652,6 +652,7 @@ def main():
 
         # step_1 reading all data into json file
         for file_dict in File_Info_Dict:
+            file_dict['file_name'] = working_dir + file_dict['file_name']
             file_name = file_dict['file_name']
             info_dict = read_data(file_dict)
             with open(file_name.replace('.xlsx', '_step_1.json'), "w") as json_file:

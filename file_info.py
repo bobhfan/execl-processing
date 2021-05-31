@@ -13,7 +13,7 @@ File_Info_Dict = [
         },
         {
             'file_name' : 'superpufft 2020 pricing  inventory report may 27, 2021.xlsx',
-            'interest_field_list': ['Current Stock/KG', 'Next Available date & Quantity/KG' ],
+            'interest_field_list': ['Total/KG', 'Next Available date & Quantity/KG' ],
             'header_row' : 7,
             'first_key_name' : 'Super Pufft Code',
             'second_key_name' : '',
