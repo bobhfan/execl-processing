@@ -3,16 +3,25 @@ FMT = '%Y-%m-%d'
 
 File_Info_Dict = [
         {
-            'file_name' :  'genpak releases - current.xlsx',
+            'file_name' :  'film status report.xlsx',
             'interest_field_list':  ['GP OH', 'On Order', 'Target Date', 'WIP', 'Ship Qy', 'Del Date', ],
-            'header_row' : 6,
+            'header_row' : 5,
             'first_key_name' : 'Item',
             'second_key_name' : '',
             'datetime_fmt' : FMT,
             'dict_level' : 1,
         },
+        # {
+        #     'file_name' :  'receiving.xlsx',
+        #     'interest_field_list':  ['Quantity', ],
+        #     'header_row' : 1,
+        #     'first_key_name' : 'Item No.',
+        #     'second_key_name' : '',
+        #     'datetime_fmt' : FMT,
+        #     'dict_level' : 1,
+        # },
         {
-            'file_name' : 'superpufft 2020 pricing  inventory report may 27, 2021.xlsx',
+            'file_name' : 'superpufft 2020 pricing  inventory report june 3, 2021.xlsx',
             'interest_field_list': ['Total/KG', 'Next Available date & Quantity/KG' ],
             'header_row' : 7,
             'first_key_name' : 'Super Pufft Code',

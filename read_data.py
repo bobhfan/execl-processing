@@ -15,8 +15,6 @@ def read_data(file_info_dict):
     wb= openpyxl.load_workbook(file_name, data_only = True)
     print(wb.sheetnames)
     sheet = wb.active
-    if file_name == 'superpufft 2020 pricing  inventory report may 27, 2021.xlsx':
-        print('got it')
 
     field_name_dict = {}
 

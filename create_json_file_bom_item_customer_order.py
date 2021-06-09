@@ -12,8 +12,10 @@ import sys
 import os
 
 
+
 from read_data import read_data
 from file_info import File_Info_Dict
+from read_forcast import read_forcast
 
 FMT = '%Y-%m-%d'
 YEAR_FMT = '%Y'
@@ -97,6 +99,8 @@ def step_2_processsing(dict_step_2):
         customer_dict = value
         # search the bom_no in the item list to determine if there is some storage for this to compensate the quantity
         if bom_no in dict_step_2[item_name]:
+            if bom_no == "AH 56371" :
+                print("Got RF 007")
             if 'FG' in dict_step_2[item_name][bom_no].get("Item Category Code", 'unknown'):
                 on_hand_quantity = dict_step_2[item_name][bom_no].get("Quantity on Hand", 0.0)
                 dict_step_2[customer_name][key].update({"Quantity on Hand from Item" : on_hand_quantity})
@@ -125,6 +129,8 @@ def step_2_1_processing(working_dir):
 
     bom_no_list =[combined_key.split('---')[-1] for combined_key in custom_dict.keys()]
 
+
+
     bom_no_no_duplicate_list = list(set(bom_no_list))
 
     # find all order with same bom_no and sorted by ship date
@@ -138,46 +144,67 @@ def step_2_1_processing(working_dir):
         
         tmp_dict[key].sort()
 
-    tmp_2_dict = {}
+    tmp_2_dict = {} 
     for bom_no, combinde_key_list in tmp_dict.items():
+
+
         tmp_2_dict[bom_no] = []
         for combined_key in combinde_key_list:
             bom_no_1, ship_date, customer_no = combined_key.split('---')
             # if bom_no == bom_no_1:
+
             search_key = '---'.join((customer_no, bom_no))
-            order_quantiry = custom_dict[search_key]['Quantity']
+            order_quantiry = custom_dict[search_key]['Outstanding Quantity']
             quantity_on_hand = custom_dict[search_key].get('Quantity on Hand from Item', 0)
             tmp_2_dict[bom_no].append((combined_key, order_quantiry, quantity_on_hand))
 
     tmp_3_dict = {}
     for bom_no, entries in tmp_2_dict.items():
-
+        if bom_no == "AH 56371" :
+            print("Got RF 007")
+        print('processing {}'.format(bom_no))
         sum_of_quantity = 0
         all_clear = False
         tmp_list = []
-        for index in range(len(entries)):
-            sum_of_quantity += entries[index][1]
-            if sum_of_quantity >= entries[0][-1]:
-                rest_quantity = sum_of_quantity - entries[0][-1]
-                break
-            if index == len(entries) - 1 and sum_of_quantity <= entries[0][-1]:
-                rest_quantity = sum_of_quantity - entries[0][-1]
-                all_clear = True
-                print("bom_no: {} all of element need be changed to zero, and still rest of {}".format(bom_no, rest_quantity))
-        
-        if index == 0 and len(entries) == 1 and all_clear == False:
-            tmp_list.append((entries[0][0], rest_quantity, 0))
-        elif all_clear == False:
-            print("bom_no: {} only [0 : {}] need be changed and the rest is {}".format(bom_no, index, rest_quantity))
-            for cnt in range(index):
-                tmp_list.append((entries[cnt][0], 0, 0))
-            tmp_list.append((entries[index][0], rest_quantity, 0))
-            for cnt in range(index+1, len(entries)):
-                tmp_list.append((entries[cnt][0], entries[cnt][1], 0))
 
-        if all_clear:
-            for cnt in range(len(entries)):
-                tmp_list.append((entries[cnt][0], 0, 0))
+        # previuos order should be calculated by on_hand also
+        removed_past_due_entries = entries
+        # split the entries into two parts the past due date not involved into the compesation calculation, only when the ship date of 
+        # order is later than current date should
+
+        # for element in entries:
+        #     date_str = element[0].split('---')[1].split('-')
+        #     date_record = date_op(int(date_str[0]), int(date_str[1]), int(date_str[2]))           
+        #     if date_record < datetime.now().date():
+        #         tmp_list.append((element[0], element[1], element[2], 'non-modified'))
+        #     else:
+        #         removed_past_due_entries.append(element)
+
+        if removed_past_due_entries:
+            for index in range(len(removed_past_due_entries)):
+
+                sum_of_quantity += removed_past_due_entries[index][1]
+                if sum_of_quantity >= removed_past_due_entries[0][-1]:
+                    rest_quantity = sum_of_quantity - removed_past_due_entries[0][-1]
+                    break
+                if index == len(removed_past_due_entries) - 1 and sum_of_quantity <= removed_past_due_entries[0][-1]:
+                    rest_quantity = sum_of_quantity - removed_past_due_entries[0][-1]
+                    all_clear = True
+                    print("bom_no: {} all of element need be changed to zero, and still rest of {}".format(bom_no, rest_quantity))
+            
+            if index == 0 and len(removed_past_due_entries) == 1 and all_clear == False:
+                tmp_list.append((removed_past_due_entries[0][0], rest_quantity, 0, 'modified'))
+            elif all_clear == False:
+                print("bom_no: {} only [0 : {}] need be changed and the rest is {}".format(bom_no, index, rest_quantity))
+                for cnt in range(index):
+                    tmp_list.append((removed_past_due_entries[cnt][0], 0, 0, 'modified'))
+                tmp_list.append((removed_past_due_entries[index][0], rest_quantity, 0, 'modified'))
+                for cnt in range(index+1, len(removed_past_due_entries)):
+                    tmp_list.append((removed_past_due_entries[cnt][0], removed_past_due_entries[cnt][1], 0, 'non-modified'))
+
+            if all_clear:
+                for cnt in range(len(removed_past_due_entries)):
+                    tmp_list.append((removed_past_due_entries[cnt][0], 0, 0, 'modified'))
 
         tmp_3_dict[bom_no] = tmp_list
             
@@ -196,15 +223,20 @@ def step_2_1_processing(working_dir):
     with open(working_dir+'customer order list_step_2_1_interm.json', "w") as json_file:
         json.dump(tmp_3_dict, json_file, indent = 4)
 
-    # ley's compensate the quantiry of each customer order
+    # let's compensate the quantiry of each customer order
     for bom_no in tmp_3_dict.keys():
         for entry in tmp_3_dict[bom_no]:
             bom_no, shipment_date, customer_no = entry[0].split('---')
             modified_quantity = entry[1]
             modified_on_hand_quantity = entry[2]
+            modified_label = entry[3]
+
 
             if custom_dict['---'.join((customer_no,bom_no))]['Shipment Date'] == shipment_date:
-                custom_dict['---'.join((customer_no,bom_no))]['Outstanding Quantity'] = str(modified_quantity) + '---' + 'Mod'
+                if modified_label == 'modified':
+                    custom_dict['---'.join((customer_no,bom_no))]['Outstanding Quantity'] = str(modified_quantity) + '---' + 'Mod'
+                elif modified_label == 'non-modified':
+                    custom_dict['---'.join((customer_no,bom_no))]['Outstanding Quantity'] = str(modified_quantity) + '---' + 'Non'
                 custom_dict['---'.join((customer_no,bom_no))]['Quantity on Hand from Item'] = modified_on_hand_quantity
 
             else :
@@ -298,17 +330,17 @@ def distribute_data_to_different_period(input_dict, days_list, future_4_weeks_da
     output_dict = defaultdict(lambda: float(0))
     # extra processing to accumulate the demand in the future 4 weeks
     for timestamp in input_dict.keys():
-        if timestamp in future_4_weeks_day_list:
-            time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
-            if timedelta(days=0) <= time_diff <= timedelta(days=6):
-                output_dict[future_4_weeks_day_list[6]] += input_dict[timestamp]
+        time_diff = datetime.strptime(timestamp, FMT).date() - datetime.strptime(future_4_weeks_day_list[0], FMT).date()
+        if timedelta(days=0) <= time_diff <= timedelta(days=6):
+            output_dict[future_4_weeks_day_list[6]] += input_dict[timestamp]
 
-            elif timedelta(days=6) < time_diff <= timedelta(days=13):
-                output_dict[future_4_weeks_day_list[13]] += input_dict[timestamp]
-            elif timedelta(days=13) < time_diff <= timedelta(days=20):
-                output_dict[future_4_weeks_day_list[20]] += input_dict[timestamp]
-            elif timedelta(days=20) < time_diff <= timedelta(days=27):
-                output_dict[future_4_weeks_day_list[27]] += input_dict[timestamp]
+        elif timedelta(days=6) < time_diff <= timedelta(days=13):
+            output_dict[future_4_weeks_day_list[13]] += input_dict[timestamp]
+        elif timedelta(days=13) < time_diff <= timedelta(days=20):
+            output_dict[future_4_weeks_day_list[20]] += input_dict[timestamp]
+        elif timedelta(days=20) < time_diff :
+            output_dict[future_4_weeks_day_list[27]] += input_dict[timestamp]
+            
         elif timestamp not in single_days_list:
             output_dict['Past Due'] += input_dict[timestamp]
         else:
@@ -424,8 +456,8 @@ def write_to_xls_file(file_name_step_4_dict):
 
         modified_customer_order_dict[bom_key] = []
 
-        if bom_key == "RC 077" or bom_key == "RA 254":
-            print("Got RA 263 or 254")
+        if bom_key == "PCF AN005" :
+            print("Got RF 007")
 
         if top_dict.get("Duty Class", "unknown") in Interest_Duty_List:
 
@@ -444,6 +476,7 @@ def write_to_xls_file(file_name_step_4_dict):
                 purchase_request_intermediate_dict = generate_puchase_data(purchase_dict[bom_key]['request'])
                 purchase_request_dict = distribute_data_to_different_period(purchase_request_intermediate_dict, row_1_list, future_4_weeks_day_list)
 
+            print("processing {}".format(bom_key))
 
             for middle_key, middle_dict in top_dict.items():
                 if isinstance(middle_dict, dict):
@@ -452,8 +485,11 @@ def write_to_xls_file(file_name_step_4_dict):
                     # todo@ add color to identify modified
                     if '---Mod' in middle_dict["Outstanding Quantity"]:
                         order_quantity = float(middle_dict["Outstanding Quantity"].replace('---Mod', ''))
-                        # add a dict to storage the modified quantity for this bom
                         modified_customer_order_dict[bom_key].append(middle_dict["Shipment Date"])
+                    else:
+                        order_quantity = float(middle_dict["Outstanding Quantity"].replace('---Non', ''))
+                        # add a dict to storage the modified quantity for this bom
+                        
 
                     demand_quantity = order_quantity * per_unit_production_quantity * (1.0 + scrap * 0.01)
 
@@ -599,6 +635,16 @@ def build_parser():
 
     return parser
 
+def get_xlsx_file_list(dir):
+    file_list = []
+    data_files = [(x[0], x[2]) for x in os.walk(dir)]
+    for path_files in data_files:
+        for file_name in path_files[1]:
+            if '.xlsx' in file_name and 'Zone' not in file_name:
+                os.rename(dir+file_name, dir+file_name.lower())
+                file_list.append(file_name.lower())
+    return set(file_list)
+
 def main():
     '''
     Args:
@@ -613,26 +659,31 @@ def main():
     cmd_parser = build_parser()
     args = cmd_parser.parse_args(sys.argv[1:])
 
+    month_working_dir = './data/month/05/'
+ 
+    day = datetime.now().date()
+    working_dir = './data/day/{}/'.format(day.strftime("%m%d"))
+    todat_file_set = get_xlsx_file_list(working_dir)
+    yesterday = datetime.now().date() - timedelta(days=1)
+    yesterday_dir = './data/day/{}/'.format(yesterday.strftime("%m%d"))
+    yesterday_file_set = get_xlsx_file_list(yesterday_dir)
+
+    # if yesterday_file_set != todat_file_set:
+    #     print("some file name changed")
+    #     print(yesterday_file_set.difference(todat_file_set))
+    #     sys.exit()
 
     #Commnd from Zabbix server to query the RPD stats
-    working_dir = args.dst_dir
-    # working_dir = './'
+    # working_dir = args.dst_dir
+    
 
-    data_files = [(x[0], x[2]) for x in os.walk(working_dir)]
-    for path_files in data_files:
-        for file_name in path_files[1]:
-            if '.xlsx' in file_name and 'Zone' not in file_name:
-                print(file_name.lower())
-                create_date = datetime.fromtimestamp(os.stat(working_dir+file_name).st_ctime).date()
-                if datetime.now().date() == create_date:
-                    print("Create on same day, continue")
-                    os.rename(working_dir+file_name, working_dir+file_name.lower())
-                else:
-                    print("{} created on different day, exit please double check".format(working_dir+file_name))
+
+
 
     # step_2 running some data manipulation on the step_1 json files
     step_2_file_dict = {}
     for file_dict in File_Info_Dict:
+        print(file_dict['file_name'])
         file_name = working_dir + file_dict['file_name'].replace('.xlsx', '_step_1.json')
         step_2_file_dict[file_name] = {}
 
@@ -644,9 +695,11 @@ def main():
     file_name_step_4_dict = {
                             'customer_name' : working_dir + 'customer order list_step_4.json',
                             'purchase_name' : working_dir + 'purchase lines_step_2.json',
-                            'genpak_name' : working_dir + 'genpak releases - current_step_1.json',
-                            'superpufft' : working_dir + 'superpufft 2020 pricing  inventory report may 27, 2021_step_1.json',
-    }
+                            'genpak_name' : working_dir + 'film status report_step_1.json',
+                            'superpufft' : working_dir + 'superpufft 2020 pricing  inventory report june 3, 2021_step_1.json',
+                            'forcast' : month_working_dir + 'total_forcast_step_1.json',
+
+                        }
 
     if 'all' in args.running_steps:
 
@@ -665,7 +718,8 @@ def main():
                     total_item_no += len(value)
 
                 print("{} record in the {}".format(total_item_no, file_name))
-
+        # due to the difference of the forcast file format, there is a dedicated function for it
+        # read_forcast(month_working_dir)
 
     step_2_processsing(step_2_file_dict)
 
