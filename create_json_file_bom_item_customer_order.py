@@ -99,8 +99,7 @@ def step_2_processsing(dict_step_2):
         customer_dict = value
         # search the bom_no in the item list to determine if there is some storage for this to compensate the quantity
         if bom_no in dict_step_2[item_name]:
-            if bom_no == "AH 56371" :
-                print("Got RF 007")
+
             if 'FG' in dict_step_2[item_name][bom_no].get("Item Category Code", 'unknown'):
                 on_hand_quantity = dict_step_2[item_name][bom_no].get("Quantity on Hand", 0.0)
                 dict_step_2[customer_name][key].update({"Quantity on Hand from Item" : on_hand_quantity})
@@ -160,9 +159,7 @@ def step_2_1_processing(working_dir):
 
     tmp_3_dict = {}
     for bom_no, entries in tmp_2_dict.items():
-        if bom_no == "AH 56371" :
-            print("Got RF 007")
-        print('processing {}'.format(bom_no))
+
         sum_of_quantity = 0
         all_clear = False
         tmp_list = []
@@ -190,12 +187,12 @@ def step_2_1_processing(working_dir):
                 if index == len(removed_past_due_entries) - 1 and sum_of_quantity <= removed_past_due_entries[0][-1]:
                     rest_quantity = sum_of_quantity - removed_past_due_entries[0][-1]
                     all_clear = True
-                    print("bom_no: {} all of element need be changed to zero, and still rest of {}".format(bom_no, rest_quantity))
+                    # print("bom_no: {} all of element need be changed to zero, and still rest of {}".format(bom_no, rest_quantity))
             
             if index == 0 and len(removed_past_due_entries) == 1 and all_clear == False:
                 tmp_list.append((removed_past_due_entries[0][0], rest_quantity, 0, 'modified'))
             elif all_clear == False:
-                print("bom_no: {} only [0 : {}] need be changed and the rest is {}".format(bom_no, index, rest_quantity))
+                # print("bom_no: {} only [0 : {}] need be changed and the rest is {}".format(bom_no, index, rest_quantity))
                 for cnt in range(index):
                     tmp_list.append((removed_past_due_entries[cnt][0], 0, 0, 'modified'))
                 tmp_list.append((removed_past_due_entries[index][0], rest_quantity, 0, 'modified'))
@@ -361,6 +358,14 @@ def write_to_xls_file(file_name_step_4_dict):
     with open(file_name_step_4_dict['superpufft']) as json_file:
         superpufft_dict = json.load(json_file)
 
+    with open(file_name_step_4_dict['forcast']) as json_file:
+        forcast_dict = json.load(json_file)
+
+    forcast_row_1_list_append_end = [
+        'Forcast\nJAN', 'Forcast\nFEB', 'Forcast\nMAR', 'Forcast\nAPR', 'Forcast\nMAY', 
+        'Forcast\nJUNE', 'Forcast\nJULY', 'Forcast\nAUG', 'Forcast\nSEP', 
+        'Forcast\nOCT', 'Forcast\nNOV', 'Forcast\nDEC']
+
     genpak_field_list = ["GP OH", "WIP", "On Order", "Target Date", "Ship Qy", "Del Date"]
     supperpufft_field_list = ["Total/KG", "Next Available date & Quantity/KG"]
 
@@ -413,6 +418,10 @@ def write_to_xls_file(file_name_step_4_dict):
             row_1_list.append(next_week_day.strftime(FMT))
         future_4_weeks_day_list.append((next_day + timedelta(days=offset_days)).strftime(FMT))
 
+    # append 12 month forcast at the end
+    for month in forcast_row_1_list_append_end:
+        row_1_list.append(month)
+
     print("row list is {}".format(row_1_list))
 
     row_cnt = 1
@@ -456,9 +465,6 @@ def write_to_xls_file(file_name_step_4_dict):
 
         modified_customer_order_dict[bom_key] = []
 
-        if bom_key == "PCF AN005" :
-            print("Got RF 007")
-
         if top_dict.get("Duty Class", "unknown") in Interest_Duty_List:
 
             demand_dict = defaultdict(lambda: float(0))
@@ -476,7 +482,6 @@ def write_to_xls_file(file_name_step_4_dict):
                 purchase_request_intermediate_dict = generate_puchase_data(purchase_dict[bom_key]['request'])
                 purchase_request_dict = distribute_data_to_different_period(purchase_request_intermediate_dict, row_1_list, future_4_weeks_day_list)
 
-            print("processing {}".format(bom_key))
 
             for middle_key, middle_dict in top_dict.items():
                 if isinstance(middle_dict, dict):
@@ -595,7 +600,10 @@ def write_to_xls_file(file_name_step_4_dict):
                 int(sheet.cell(row=previous_available_inventory_row, column=past_due_column).value) + \
                 int(sheet.cell(row=previous_purchase_receipts_row, column=past_due_column).value)            
 
+            # to add last 2 sub-rows in the excel
             for last_2_row_column_no in range(9, len(row_1_list)):
+                if 'Forcast' in row_1_list[last_2_row_column_no]:
+                    continue
                 if not sheet.cell(row=previous_demand_row, column=last_2_row_column_no).value:
                     sheet.cell(row=previous_demand_row, column=last_2_row_column_no).value = 0
                 if not sheet.cell(row=previous_purchase_receipts_row, column=last_2_row_column_no).value:
@@ -608,6 +616,19 @@ def write_to_xls_file(file_name_step_4_dict):
                 sheet.cell(row=previous_total_ending_balance_row, column=last_2_row_column_no).value = \
                     int(sheet.cell(row=previous_available_inventory_row, column=last_2_row_column_no).value) + \
                     int(sheet.cell(row=previous_purchase_receipts_row, column=last_2_row_column_no).value)
+
+
+            # to add forcast data 
+            for last_2_row_column_no in range(9, len(row_1_list)):
+                if 'Forcast' not in row_1_list[last_2_row_column_no]:
+                    continue
+                month = row_1_list[last_2_row_column_no].splitlines()[-1]
+                currrent_year = str(datetime.now().date().year)
+                key = '{}{}'.format(currrent_year, month)
+                if bom_key in forcast_dict:
+                    sheet.cell(row=row_cnt - 4, column=last_2_row_column_no +1).value = int(forcast_dict[bom_key].get(key, 0))
+
+
 
         column_cnt = 1
 
@@ -659,7 +680,7 @@ def main():
     cmd_parser = build_parser()
     args = cmd_parser.parse_args(sys.argv[1:])
 
-    month_working_dir = './data/month/05/'
+    month_working_dir = './data/month/06/'
  
     day = datetime.now().date()
     working_dir = './data/day/{}/'.format(day.strftime("%m%d"))
@@ -678,7 +699,7 @@ def main():
     
 
 
-
+    # working_dir = './data/day/0611/'
 
     # step_2 running some data manipulation on the step_1 json files
     step_2_file_dict = {}
@@ -696,8 +717,8 @@ def main():
                             'customer_name' : working_dir + 'customer order list_step_4.json',
                             'purchase_name' : working_dir + 'purchase lines_step_2.json',
                             'genpak_name' : working_dir + 'film status report_step_1.json',
-                            'superpufft' : working_dir + 'superpufft 2020 pricing  inventory report june 3, 2021_step_1.json',
-                            'forcast' : month_working_dir + 'total_forcast_step_1.json',
+                            'superpufft' : working_dir + 'superpufft 2020 pricing  inventory report_step_1.json',
+                            'forcast' : month_working_dir + 'total_forcast_step_4.json',
 
                         }
 
@@ -719,7 +740,7 @@ def main():
 
                 print("{} record in the {}".format(total_item_no, file_name))
         # due to the difference of the forcast file format, there is a dedicated function for it
-        # read_forcast(month_working_dir)
+    read_forcast(month_working_dir, working_dir +'bom list_step_1.json')
 
     step_2_processsing(step_2_file_dict)
 

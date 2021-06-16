@@ -21,7 +21,7 @@ File_Info_Dict = [
         #     'dict_level' : 1,
         # },
         {
-            'file_name' : 'superpufft 2020 pricing  inventory report june 3, 2021.xlsx',
+            'file_name' : 'superpufft 2020 pricing  inventory report.xlsx',
             'interest_field_list': ['Total/KG', 'Next Available date & Quantity/KG' ],
             'header_row' : 7,
             'first_key_name' : 'Super Pufft Code',
